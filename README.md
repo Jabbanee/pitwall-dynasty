@@ -58,7 +58,8 @@ Key decisions:
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173   (frontend)
+npm run server     # ws://localhost:8080    (multiplayer, optional for single-player)
 ```
 
 ```bash
@@ -69,6 +70,18 @@ npm run build      # typecheck + production build
 
 > Windows note: if `npm install` skips devDependencies, a `NODE_ENV=production`
 > environment variable is the likely cause — install with `NODE_ENV=development`.
+
+## Modes (main menu)
+
+1. **Quick Start** — one-click Fast Championship (10 teams, 5 rounds).
+2. **Fast Championship** — configurable teams, races, timers, weather.
+3. **Multiplayer** — host or join a real Fast Championship with friends.
+   The browser connects to a Node WebSocket server, the server is
+   authoritative for all race state, every client just sends actions and
+   receives snapshots. Lobby code, ready, start, live commands, voting,
+   reconnect all work over one socket.
+4. **Solo Career** — multi-season on the same core, Real or Fictional
+   Career, era selector (1980 / 1990 / 1998 / 2005 / 2010 / 2014 / 2022).
 
 ## How a round works (Fast Championship)
 
@@ -130,22 +143,51 @@ instantly simulate the current round, jump rounds, reset save, validate mods.
 
 ## Current scope / limitations
 
-- Multiplayer transport (lobby, join codes, live vote sync) is implemented
-  as a real WebSocket server (`src/server/server.ts`) with a browser client
-  (`src/client/multiplayer-client.ts`); verified end-to-end with two
-  browser tabs joining the same lobby code. The local single-player
+- **Multiplayer** is fully wired: lobby screen with create/join codes,
+  ready state, host-start flow, all backed by a Node WebSocket server
+  (`src/server/server.ts`) with a browser client
+  (`src/client/multiplayer-client.ts`). Verified end-to-end with two
+  real browser tabs joining the same lobby code (host issues code,
+  guest joins by entering it, both see the same player list, both
+  toggle ready, host starts championship). The local single-player
   build also drives the same `LiveRaceEngine`.
-- Two active drivers per team race per event.
-- Practice sessions are functional: Quick Sim and Manual Plan modes with
-  focus checkboxes and effort levels, producing a setup-confidence bonus
-  consumed by the live race engine.
-- Commentary engine + Paddock Post publication + interview system are
-  fully implemented (offline, template-based, deterministic).
-- 3D broadcast uses Three.js with era-aware car geometry, helicopter
-  camera, live strategy panel, team radio, battle notifications, and
-  per-driver camera selection.
-- Team orders show AVAILABLE / RISKY / PROHIBITED / DRIVER UNCERTAIN
-  badges with title reasons — no unexplained disabled actions.
+- **Driver Agency** is championship-scoped: every Fast Championship
+  and League Championship starts with a fresh agency baseline. Driver
+  memory, morale, trust, teammate relationships, broken promises,
+  compliance verdicts — all reset per championship. Static personality
+  traits (ego, aggression, professionalism) remain.
+- **Regulations Engine** is era-aware: 1980 / 1989 / 1995 / 2003 / 2011
+  / 2014 / 2022 eras. The 2003–2010 era models the team-order
+  prohibition (direct swaps PROHIBITED, coded orders RISKY with
+  steward scrutiny / fine / points-penalty risk).
+- **Commentary engine** is event-driven, two roles (LEAD COMMENTATOR
+  for action, ANALYST for strategy context), rate-limited, dedupe on
+  identical events, fully offline (no external API).
+- **Paddock Post** post-race publication: real lead headline, stat
+  tiles, story cards, driver quotes, teammate disputes, championship
+  picture, transfer rumours, regulation news.
+- **Interviews** trigger contextually (unexpected win, driver collision,
+  teammate dispute, championship battle, refused order, broken promise)
+  with 3 response options each, applying real morale / trust /
+  reputation / media-sentiment / teammate-relationship effects.
+- **3D Broadcast** uses Three.js with era-aware car geometry, helicopter
+  camera, live strategy panel, team radio, battle notifications with
+  WATCH button, notification suppression when the relevant battle is
+  already on screen, per-driver camera selection (My Driver 1 / My
+  Driver 2 / Leader / Watch Battle), independent per-player camera.
+- **Team orders** show AVAILABLE / RISKY / PROHIBITED /
+  DRIVER UNCERTAIN badges with title reasons — no unexplained disabled
+  actions. Driver verdicts (Very Likely / Likely / Uncertain /
+  Unlikely / Very Unlikely) come from `assessCompliance()` against
+  the driver's agency state, with positive/negative reason chips.
+- **Practice** is functional: Quick Sim (low effort) and Manual Plan
+  (longRun / qualiSim / raceSim focus × low/standard/high effort)
+  produce a setup-confidence bonus consumed by the live race engine.
+- **Research** is functional: car development projects with stat
+  tradeoffs, future-regulation research loop.
+- **Era selection** covers 1980 / 1990 / 1998 / 2005 / 2010 / 2014 /
+  2022, each with team-orders / qualifying / refuelling / compounds /
+  points / cost-cap / safety-car summaries in the era panel.
 
 ## Visual QA
 

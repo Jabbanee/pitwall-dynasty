@@ -1,6 +1,6 @@
 # Pitwall Dynasty — Project Status
 
-Last updated: end of Phase 2 continuation run.
+Last updated: end of Phase 2 continuation run (2026-08-26).
 
 ## Implemented
 
@@ -21,14 +21,19 @@ Last updated: end of Phase 2 continuation run.
   defers to next lap deterministically
 
 ### Multiplayer
-- Authoritative WebSocket server (`src/server/server.ts`)
-- MultiplayerLobby class with fresh championship state
-- Browser MultiplayerClient (queue, reconnect, welcome message)
-- Join codes, team selection, ready state, management phase
+- Authoritative WebSocket server (`src/server/server.ts`) on
+  `ws://localhost:8080`
+- `MultiplayerLobby` class with fresh championship state (no inherited
+  agency / promises / media history)
+- Browser `MultiplayerClient` (queue, reconnect, welcome message)
+- Lobby screen (`src/ui/lobby.ts`) with create / join by code, player
+  list, ready toggle, host-start button
+- Join codes, ready state, management phase
 - Live race with reveal-safe snapshots
 - Voting (speed / pause / rewind)
-- Verified with two real browser tabs connecting to lobby
-  `GXRBYJ` (2 players)
+- Verified end-to-end with two real browser tabs (host issues code
+  e.g. `FW6BVU`, guest joins by entering the code, both ready, host
+  starts — `phaseChange` broadcast to both clients)
 
 ### Driver Agency
 - Championship-scoped state store (DriverAgencyStore)
@@ -41,6 +46,9 @@ Last updated: end of Phase 2 continuation run.
   salary) keyed on personality traits
 - addPromise / breakPromise with severe consequences on broken
   promises
+- **Multiplayer isolation**: every Fast Championship and League
+  Championship starts with `freshAgencyState()` — no inherited
+  grudges, no inherited media history. Static personality remains.
 
 ### Regulations Engine
 - Era-aware regulations for 7 eras (1980-2022+)
@@ -59,6 +67,7 @@ Last updated: end of Phase 2 continuation run.
 - Battle detection + battle notification cards with WATCH button
 - Notification suppression when the battle is already on screen
 - Independent per-player camera (no shared camera state)
+- LEAD + ANALYST commentary ribbon overlaid on the 3D canvas
 
 ### Live strategy
 - Pace: conserve / normal / push / attack
@@ -67,20 +76,25 @@ Last updated: end of Phase 2 continuation run.
 - Tyre: all 5 compounds, request only (executed at next stop)
 - Team orders: hold / coexist / swap / priority / free
 - Availability explanations with era + driver compliance verdict
+  (AVAILABLE / RISKY / PROHIBITED / DRIVER UNCERTAIN)
 
 ### Career
 - Real Career (historical shadow timeline)
 - Fictional Career (emergent alternate history)
-- Era selector with START_YEARS
-- Era summary panel (team orders / qualifying / refuelling / compounds / points / cost cap / SC rules)
+- Era selector with START_YEARS (1980 / 1990 / 1998 / 2005 / 2010 /
+  2014 / 2022)
+- Era summary panel (team orders / qualifying / refuelling /
+  compounds / points / cost cap / SC rules)
 - 10 fictional teams, 24 fictional drivers, 12 sponsors
 - Fictional Shadow Circuits (10 layouts)
 - 3-year initial contract system
 
 ### Practice
 - Quick Sim: low effort, small bonus
-- Manual Plan: focus checkboxes (longRun / qualiSim / raceSim), effort level (low/standard/high)
-- Output: numeric setup-confidence bonus in seconds, deterministic per seed
+- Manual Plan: focus checkboxes (longRun / qualiSim / raceSim),
+  effort level (low/standard/high)
+- Output: numeric setup-confidence bonus in seconds, deterministic
+  per seed
 - Consumed by LiveRaceEngine via practiceBonus per lap
 
 ### Media
@@ -105,17 +119,19 @@ Last updated: end of Phase 2 continuation run.
 - Multiplayer two-client tested live
 
 ### Tests
-- 94 vitest tests across 14 files
+- 104 vitest tests across 15 files
 - Pure-domain logic, deterministic, fast
 
 ## Partially implemented
 
 - 3D track circuits remain flat procedural geometry (no per-track
   elevation models). Acceptable for helicopter broadcast framing.
-- Per-driver agency has compliance logic but morale-driven team
-  orders require server-side agency state; the broadcast3d view
-  uses a local heuristic when agency data is not present in the
-  championship.
+- The multiplayer championship state lives on the server; the
+  local `store.champ` is the previously-saved championship. The
+  lobby→race navigation lands on the local championship's HQ by
+  default. A future pass should hydrate `store.champ` from the
+  server's `lobbySnapshot` so a multiplayer race actually shows
+  the race in the broadcast on both clients.
 
 ## Remaining
 
@@ -126,6 +142,8 @@ Last updated: end of Phase 2 continuation run.
 - Per-track elevation / kerbs / runoff (visually flat right now).
 - Interview replayability: interview system fires once per
   triggering race, no follow-up chain.
+- Hydrate local store from server lobby snapshot for true
+  cross-client multiplayer race viewing.
 
 ## Known issues
 
@@ -137,13 +155,18 @@ Last updated: end of Phase 2 continuation run.
 - During HMR reload, the 3D view occasionally re-mounts before the
   engine is ready, leaving an empty canvas for ~100ms. Not visible
   in normal use.
+- When a player reloads a tab, the server issues a new playerId
+  and marks the previous player as `OFFLINE` in the lobby. This
+  is correct behaviour but visually surprising in the UI. A future
+  pass should map reconnecting tabs onto the same playerId.
 
 ## Test count
 
-94/94 passing. TypeScript: clean. Production build: green.
+104/104 passing. TypeScript: clean. Production build: green.
 
 ## Last QA
 
-Phase 2 continuation, 2026-08-26. Both multiplayer and single-player
-flows manually verified in Playwright. Screenshots committed to
-`docs/testing/screenshots/phase2/`.
+Phase 2 continuation, 2026-08-26. Both multiplayer (2 browser tabs in
+Playwright) and single-player flows manually verified. Screenshots
+committed to `docs/testing/screenshots/phase2/`.
+
