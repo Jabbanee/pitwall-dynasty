@@ -1,6 +1,7 @@
 import { el, toast } from './dom'
 import { store } from '../state/store'
 import { createChampionship } from '../championship/create'
+import { START_YEARS } from '../regulations/regulations'
 import type { Championship } from '../core/types'
 
 /** Championship creation screen (Fast Championship / Career configuration). */
@@ -21,10 +22,24 @@ export function renderNewChampionship(root: HTMLElement, mode: Championship['mod
   let weather = true
   let equalTeams = false
   let teamName = ''
+  let careerKind: 'fictional' | 'real' = 'fictional'
+  let eraYear = 2022
 
   const rebuild = () => {
     body.innerHTML = ''
+    const careerFields: Array<Node> = mode === 'career'
+      ? [
+          field('Career type',
+            segmented2([
+              { value: 'fictional', label: 'Fictional Career', desc: 'Emergent alternate history — anything can happen' },
+              { value: 'real', label: 'Real Career', desc: 'Historical shadow timeline — eras follow real-world trends' },
+            ], careerKind, (v) => { careerKind = v as 'fictional' | 'real'; rebuild() })),
+          field('Starting era',
+            selectEra(eraYear, (v) => { eraYear = v })),
+        ]
+      : []
     body.append(
+      ...careerFields,
       field('Your team name (optional)', inputText(teamName, (v) => (teamName = v), 'e.g. Falcon Apex Racing')),
       field('Number of teams', slider(4, 11, teamCount, (v) => (teamCount = v))),
       field('Races in season', slider(2, 16, races, (v) => (races = v))),
@@ -125,4 +140,36 @@ function toggle(value: boolean, onChange: (v: boolean) => void): HTMLElement {
   }
   group.append(onBtn, offBtn)
   return group
+}
+
+interface SegOption { value: string; label: string; desc: string }
+
+function segmented2(options: SegOption[], current: string, onChange: (v: string) => void): HTMLElement {
+  const box = document.createElement('div')
+  box.style.display = 'flex'
+  box.style.flexDirection = 'column'
+  box.style.gap = '6px'
+  for (const opt of options) {
+    const card = el('button', {
+      class: `menu-card${opt.value === current ? ' era-selected' : ''}`,
+      style: 'width:100%;padding:12px 16px',
+      onclick: () => onChange(opt.value),
+    },
+      el('h3', { style: 'font-size:13px;margin-bottom:4px' }, opt.label),
+      el('p', { style: 'font-size:11px' }, opt.desc),
+    )
+    box.appendChild(card)
+  }
+  return box
+}
+
+function selectEra(current: number, onChange: (v: number) => void): HTMLElement {
+  const sel = el('select') as HTMLSelectElement
+  for (const era of START_YEARS) {
+    const opt = el('option', { value: era.year }, `${era.year} — ${era.eraName}`) as HTMLOptionElement
+    if (era.year === current) opt.selected = true
+    sel.appendChild(opt)
+  }
+  sel.addEventListener('change', () => onChange(Number(sel.value)))
+  return sel
 }

@@ -45,7 +45,8 @@
       "Shell(npx tsx src/server/server.ts)",
       "Shell(powershell -Command \"Test-NetConnection -ComputerName localhost -Port 8080 -InformationLevel Quiet\" 2>&1)",
       "Shell(powershell -Command \"(Get-Content 'src\\ui\\three\\broadcast3d.ts' -Raw) -replace 'client\\.liveCommand\\(', 'sendCommand(' | Set-Content 'src\\ui\\three\\broadcast3d.ts' -NoNewline\" 2>&1; npx tsc --noEmit 2>&1)",
-      "Shell(del b3d-*.png b3d-*.png 2>nul & git add -A & git commit -F \"C:\\Users\\Janne\\AppData\\Local\\Temp\\commandcode\\D--BaneWorks-Pelit-PC-Pitwall-Dynasty\\f3ba49fb-37a1-466c-a4af-06a14b83e05d\\scratchpad\\commit-msg.txt\" 2>&1)"
+      "Shell(del b3d-*.png b3d-*.png 2>nul & git add -A & git commit -F \"C:\\Users\\Janne\\AppData\\Local\\Temp\\commandcode\\D--BaneWorks-Pelit-PC-Pitwall-Dynasty\\f3ba49fb-37a1-466c-a4af-06a14b83e05d\\scratchpad\\commit-msg.txt\" 2>&1)",
+      "Shell(npx vitest run tests/media.test.ts 2 >& 1)"
     ],
     "deny": [],
     "defaultMode": "default"
