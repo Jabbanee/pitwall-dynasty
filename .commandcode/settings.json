@@ -36,7 +36,8 @@
       "Shell(npx tsx scratch/debug-live.ts 2 >& 1)",
       "Shell(npx vitest run tests/live-race.test.ts 2>&1 | findstr /C:\"expected undefined\" /B 2>nul || npx vitest run tests/live-race.test.ts 2>&1 | findstr /C:\"live-race.test.ts:\")",
       "Shell(del:*)",
-      "Shell(rmdir:*)"
+      "Shell(rmdir:*)",
+      "Shell(npx vitest run tests/agency.test.ts 2 >& 1)"
     ],
     "deny": [],
     "defaultMode": "default"
