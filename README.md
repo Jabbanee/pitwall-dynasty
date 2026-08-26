@@ -130,13 +130,28 @@ instantly simulate the current round, jump rounds, reset save, validate mods.
 
 ## Current scope / limitations
 
-- Multiplayer transport (lobby, join codes, live vote sync) is
-  architecture-ready but not wired to a network; the local build resolves
-  votes solo.
-- Practice sessions and research/future-regulations are stubs in the economy
-  model (facilities + development carry the progression loop).
-- Broadcast visuals are stylized 2D (canvas) by design, not 3D.
-- One driver per team races per event (the second driver is the reserve).
+- Multiplayer transport (lobby, join codes, live vote sync) is implemented
+  as a real WebSocket server (`src/server/server.ts`) with a browser client
+  (`src/client/multiplayer-client.ts`); verified end-to-end with two
+  browser tabs joining the same lobby code. The local single-player
+  build also drives the same `LiveRaceEngine`.
+- Two active drivers per team race per event.
+- Practice sessions are functional: Quick Sim and Manual Plan modes with
+  focus checkboxes and effort levels, producing a setup-confidence bonus
+  consumed by the live race engine.
+- Commentary engine + Paddock Post publication + interview system are
+  fully implemented (offline, template-based, deterministic).
+- 3D broadcast uses Three.js with era-aware car geometry, helicopter
+  camera, live strategy panel, team radio, battle notifications, and
+  per-driver camera selection.
+- Team orders show AVAILABLE / RISKY / PROHIBITED / DRIVER UNCERTAIN
+  badges with title reasons — no unexplained disabled actions.
+
+## Visual QA
+
+Screenshots and per-file verification live in
+`docs/testing/VISUAL_QA.md` and the captured images are in
+`docs/testing/screenshots/phase2/`.
 
 ## Repo layout
 

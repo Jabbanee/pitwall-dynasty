@@ -556,7 +556,24 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     el('button', { onclick: () => client.vote('rewind', Math.max(0, (race?.cursorSeconds ?? 0) - 30)) }, '⏪ 30s'),
     el('button', { onclick: () => client.resumeLive() }, '⏵ LIVE'),
     el('span', { class: 'spacer' }),
-    el('button', { class: 'primary', onclick: () => client.nextRound() }, 'Next round'),
+    el('button', { class: 'primary', onclick: () => {
+      if (LOCAL_MODE) {
+        // Local mode: run the live race to completion if needed, then advance
+        if (localEngine && !localEngine.isFinished()) {
+          // Speed up so we don't sit here forever
+          const tmpSpeed = speed; speed = 16
+          let safety = 0
+          while (!localEngine.isFinished() && safety < 1000) {
+            localEngine.stepLap(); safety++
+          }
+          speed = tmpSpeed
+          commitLocalResults()
+        }
+        location.hash = '#/paddock'
+      } else {
+        client.nextRound()
+      }
+    } }, 'Next round'),
     el('button', { onclick: () => (location.hash = '#/hq') }, 'Exit'),
   )
 
@@ -653,7 +670,13 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     const { LiveRaceEngine } = liveModule
     const { buildTeamRacePackages } = engineModule
     const round = champ.rounds[champ.currentRoundIndex]
-    if (round.raceDone) return // race already completed via standard path
+    // If the headless engine already finished the race, jump straight to
+    // results so the player isn't stuck in a blank broadcast view.
+    if (round.raceDone) {
+      toast('Race complete — viewing results.')
+      location.hash = '#/results'
+      return
+    }
 
     // Lock packages locally (without pre-simulating the whole race)
     const seed = roundSeedFor(champ, round.index)
@@ -751,7 +774,8 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     round.raceDone = true
     round.phase = 'roundResults'
     champ.phase = 'roundResults'
-    store.save()
+    // Defer to the store so finances + news run in one place
+    store.finishLiveRace(round.raceResult)
   }
 
   function localSnapshot(): RaceSnapshot | null {

@@ -50,7 +50,7 @@ export class GameEngine {
   // Lock & simulate
   // -------------------------------------------------------------------------
 
-  lockRound(seedOverride?: number): { seed: number } {
+  lockRound(seedOverride?: number, options: { headless?: boolean } = { headless: true }): { seed: number } {
     const round = this.currentRound
     if (round.packagesLocked) return { seed: roundSeed(this.champ, round.index) }
     const seed = seedOverride ?? roundSeed(this.champ, round.index)
@@ -93,34 +93,33 @@ export class GameEngine {
     round.qualifyingDone = true
     round.phase = 'raceBroadcast'
 
-    // Grid order: qualifying rows are already one-per-car; match by driver
-    const byDriver = new Map(allPackages.map((p) => [p.driverId, p]))
-    const orderedPackages: RacePackage[] = []
-    for (const row of qualiResult.rows) {
-      const pkg = byDriver.get(row.driverId)
-      if (pkg) {
-        orderedPackages.push(pkg)
-        byDriver.delete(row.driverId)
+    if (options.headless) {
+      // Old behaviour: simulate the full race immediately and jump to results
+      const byDriver = new Map(allPackages.map((p) => [p.driverId, p]))
+      const orderedPackages: RacePackage[] = []
+      for (const row of qualiResult.rows) {
+        const pkg = byDriver.get(row.driverId)
+        if (pkg) {
+          orderedPackages.push(pkg)
+          byDriver.delete(row.driverId)
+        }
       }
+      for (const pkg of byDriver.values()) orderedPackages.push(pkg)
+      const raceResult = simulateRace({
+        roundId: `${round.index}`,
+        circuit: this.circuitOf(round.index),
+        packages: orderedPackages,
+        drivers: this.champ.drivers,
+        seed: (seed ^ 0x5aced) >>> 0,
+        weatherEnabled: this.champ.config.weatherEnabled,
+      })
+      void fixRaceResultTyping(raceResult)
+      round.raceResult = raceResult
+      round.raceDone = true
+      round.phase = 'roundResults'
+      settleRoundFinances(this.champ, round.index)
+      this.publishRaceNews()
     }
-    // Safety: any car missing from quali starts at the back
-    for (const pkg of byDriver.values()) orderedPackages.push(pkg)
-
-    const raceResult = simulateRace({
-      roundId: `${round.index}`,
-      circuit: this.circuitOf(round.index),
-      packages: orderedPackages,
-      drivers: this.champ.drivers,
-      seed: (seed ^ 0x5aced) >>> 0,
-      weatherEnabled: this.champ.config.weatherEnabled,
-    })
-    void fixRaceResultTyping(raceResult)
-    round.raceResult = raceResult
-    round.raceDone = true
-    round.phase = 'roundResults'
-
-    settleRoundFinances(this.champ, round.index)
-    this.publishRaceNews()
     return { seed }
   }
 

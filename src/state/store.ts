@@ -49,9 +49,34 @@ class AppStore {
       const prep = aiPrepareRound(this.champ, team)
       this.engine.updateStrategy(team.id, prep)
     }
-    this.engine.lockRound()
+    // Lock packages + run qualifying; skip the full race here so the
+    // broadcast view can drive it via LiveRaceEngine in real time.
+    this.engine.lockRound(undefined, { headless: false })
     saveToStorage(this.champ)
     this.emit()
+  }
+
+  /** Run the live race to completion (used by broadcast view). */
+  finishLiveRace(result: import('../core/types').RaceResult) {
+    if (!this.engine || !this.champ) return
+    const round = this.engine.currentRound
+    if (round.raceDone) return
+    round.raceResult = result
+    round.raceDone = true
+    round.phase = 'roundResults'
+    this.champ.phase = 'roundResults'
+    // Settle finances and publish news
+    import('../championship/engine').then(({ settleRoundFinances, addNews }) => {
+      settleRoundFinances(this.champ!, round.index)
+      const winner = result.results[0]
+      if (winner) {
+        const wName = this.champ!.drivers[winner.driverId]?.lastName ?? winner.driverId
+        const wTeam = this.champ!.teams.find((t) => t.id === winner.teamId)?.name ?? ''
+        addNews(this.champ!, `RACE RESULT — ${this.champ!.circuits[round.index]?.name ?? ''}`, `${wName} (${wTeam}) wins.`)
+      }
+      saveToStorage(this.champ!)
+      this.emit()
+    })
   }
 
   advanceRound() {
