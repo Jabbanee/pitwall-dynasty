@@ -84,6 +84,8 @@ interface LiveCar {
   deferredMessage?: string
   stintPlansUsed: Set<number>
   lastPitLap: number
+  /** Setup-confidence bonus from practice, in seconds (negative = faster). */
+  practiceBonus: number
 }
 
 export interface LiveRaceState {
@@ -152,6 +154,7 @@ export class LiveRaceEngine {
       if (!driver) return
       const wearVals = Object.values(pkg.componentWear ?? {})
       const avgWear = wearVals.length ? wearVals.reduce((a, b) => a + b, 0) / wearVals.length : 0
+      const practiceBonus = (pkg as unknown as { practiceBonus?: number }).practiceBonus ?? 0
       this.cars.push({
         teamId: pkg.teamId,
         driverId: pkg.driverId,
@@ -183,6 +186,7 @@ export class LiveRaceEngine {
         lapStartTime: 0,
         stintPlansUsed: new Set(),
         lastPitLap: 0,
+        practiceBonus,
       })
     })
     this.pushEvent('raceStart', null, `Lights out at ${this.circuit.name} — ${c.laps} laps`)
@@ -738,6 +742,9 @@ function liveLapTime(
   if (car.tyreWear > comp.wearCliff) t += (car.tyreWear - comp.wearCliff) * 26
   t += car.fuelKg * 0.03
   t += car.strategy.paceMode === 'attack' ? -0.65 : car.strategy.paceMode === 'push' ? -0.3 : car.strategy.paceMode === 'conserve' ? 0.75 : 0
+  // Practice bonus: positive number is seconds removed per lap (faster),
+  // negative is added per lap. Scale conservatively.
+  t -= car.practiceBonus
   t += car.strategy.energy === 'deploy' ? -0.15 : car.strategy.energy === 'harvest' ? 0.18 : 0
   t += car.damage * 6
   t += (1 - car.componentCondition) * 2.2

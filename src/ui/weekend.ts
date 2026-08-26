@@ -1,6 +1,7 @@
 import { el, fmtTime, toast } from './dom'
 import { store } from '../state/store'
 import { forecastForRound } from '../championship/engine'
+import { defaultManualPlan, runPractice, PRACTICE_FOCUS_LABELS, type PracticeFocus, type PracticePlan } from '../championship/practice'
 import type { PaceMode, SetupChoice, StrategyPlaybook, TyreCompoundId, Championship, Team } from '../core/types'
 import { TYRES, DRY_COMPOUNDS, WET_COMPOUNDS } from '../core/tyres'
 
@@ -91,6 +92,10 @@ export function renderWeekend(root: HTMLElement) {
   setupBody.appendChild(sliderRow('Mechanical grip ←→ Straights', -3, 3, work.setup.mechanicalGripBias, (v) => { work.setup.mechanicalGripBias = v; persist() }))
   setupCard.appendChild(setupBody)
   right.appendChild(setupCard)
+
+  // Practice card — sets up confidence bonus consumed by the simulator
+  const practiceCard = renderPracticeCard(champ, team, round, () => renderWeekend(root))
+  right.appendChild(practiceCard)
 
   // Strategy card
   const stratCard = el('div', { class: 'card' },
@@ -211,6 +216,117 @@ export function renderWeekend(root: HTMLElement) {
       location.hash = '#/broadcast'
     }
   }, 250)
+}
+
+// ---------------------------------------------------------------------------
+// Practice card
+// ---------------------------------------------------------------------------
+
+function renderPracticeCard(champ: Championship, team: Team, round: import('../core/types').RoundState, refresh: () => void) {
+  const card = el('div', { class: 'card' }, el('div', { class: 'card-head' }, el('h3', {}, 'Practice')))
+  const body = el('div', { class: 'card-body' })
+  const existing = (round.practiceBonus ?? {})[team.id]
+  const plan = loadPracticePlan(champ, team)
+
+  body.appendChild(el('p', { style: 'color:var(--text-2);font-size:12px;margin-bottom:6px' },
+    'Run practice to learn the track, dial in the setup, and seed driver confidence. Quick sim is low effort, Manual lets you pick focuses.'))
+
+  // Mode toggle
+  const modeRow = el('div', { class: 'seg-group' })
+  const quickBtn = el('button', { class: plan.mode === 'quickSim' ? 'selected' : '', onclick: () => { plan.mode = 'quickSim'; savePracticePlan(champ, team, plan); refresh() } }, 'Quick Sim')
+  const manualBtn = el('button', { class: plan.mode === 'manual' ? 'selected' : '', onclick: () => { plan.mode = 'manual'; savePracticePlan(champ, team, plan); refresh() } }, 'Manual Plan')
+  modeRow.append(quickBtn, manualBtn)
+  body.appendChild(labelled('Approach', modeRow))
+
+  if (plan.mode === 'manual') {
+    const focusRow = el('div', { style: 'display:flex;flex-direction:column;gap:4px' })
+    for (const f of ['longRun', 'qualiSim', 'raceSim'] as PracticeFocus[]) {
+      const on = plan.focuses.includes(f)
+      focusRow.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:flex-start;cursor:pointer' },
+        el('input', {
+          type: 'checkbox',
+          ...(on ? { checked: true } : {}),
+          onchange: (e: Event) => {
+            const checked = (e.currentTarget as HTMLInputElement).checked
+            if (checked) {
+              if (!plan.focuses.includes(f)) plan.focuses.push(f)
+            } else {
+              plan.focuses = plan.focuses.filter((x) => x !== f)
+            }
+            savePracticePlan(champ, team, plan)
+            refresh()
+          },
+        }),
+        el('div', {},
+          el('div', { style: 'font-weight:600' }, PRACTICE_FOCUS_LABELS[f].name),
+          el('div', { style: 'font-size:11px;color:var(--text-2)' }, PRACTICE_FOCUS_LABELS[f].desc),
+        ),
+      ))
+    }
+    body.appendChild(labelled('Focus areas', focusRow))
+
+    const effortRow = el('div', { class: 'seg-group' })
+    for (const e of ['low', 'standard', 'high'] as const) {
+      effortRow.appendChild(el('button', {
+        class: plan.effort === e ? 'selected' : '',
+        onclick: () => { plan.effort = e; savePracticePlan(champ, team, plan); refresh() },
+      }, e.toUpperCase()))
+    }
+    body.appendChild(labelled('Effort', effortRow))
+  }
+
+  // Status / run button
+  const status = el('div', { class: 'practice-status' })
+  if (existing !== undefined) {
+    const pct = (existing * 100).toFixed(1)
+    const cls = existing >= 0.04 ? 'good' : existing >= 0 ? 'warn' : 'bad'
+    status.appendChild(el('div', { class: `stat` },
+      el('span', {}, 'Last result'),
+      el('span', { class: 'value', style: `color:var(--${cls === 'good' ? 'good' : cls === 'warn' ? 'warn' : 'bad'})` }, `${existing >= 0 ? '+' : ''}${pct}s bonus`),
+    ))
+  } else {
+    status.appendChild(el('div', { style: 'font-size:12px;color:var(--text-2)' }, 'No practice run yet for this round.'))
+  }
+  body.appendChild(status)
+
+  body.appendChild(
+    el('button', {
+      class: 'primary',
+      style: 'margin-top:6px',
+      onclick: () => {
+        const r = runPractice(champ, team, round, plan)
+        toast(`${r.summary} (+${(r.bonus * 100).toFixed(1)}s setup confidence)`, r.bonus < 0)
+        store.save()
+        refresh()
+      },
+    }, 'Run Practice'),
+  )
+
+  card.appendChild(body)
+  return card
+}
+
+const PRACTICE_KEY = 'pitwall.practice'
+interface PracticeSaved { [teamId: string]: PracticePlan }
+
+function loadPracticePlan(champ: Championship, team: Team): PracticePlan {
+  try {
+    const raw = sessionStorage.getItem(`${PRACTICE_KEY}.${champ.id}`)
+    if (raw) {
+      const parsed = JSON.parse(raw) as PracticeSaved
+      if (parsed[team.id]) return parsed[team.id]
+    }
+  } catch { /* fallthrough */ }
+  return defaultManualPlan(team.id)
+}
+
+function savePracticePlan(champ: Championship, team: Team, plan: PracticePlan) {
+  try {
+    const raw = sessionStorage.getItem(`${PRACTICE_KEY}.${champ.id}`)
+    const obj: PracticeSaved = raw ? JSON.parse(raw) : {}
+    obj[team.id] = plan
+    sessionStorage.setItem(`${PRACTICE_KEY}.${champ.id}`, JSON.stringify(obj))
+  } catch { /* non-fatal */ }
 }
 
 // ---------------------------------------------------------------------------

@@ -550,6 +550,10 @@ export interface ChampionshipConfig {
     pause: 'majority' | 'unanimous'
   }
   season: number
+  /** Career mode kind — fast/league do not use this. */
+  careerKind?: 'fictional' | 'real'
+  /** Starting era year for career mode; drives regulations + narrative tone. */
+  eraYear?: number
 }
 
 export interface RoundState {

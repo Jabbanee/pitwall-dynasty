@@ -5,6 +5,9 @@ import { MultiplayerClient, type RaceSnapshot, type LobbySnapshot } from '../../
 import { buildTrackMeshes, type TrackMeshes } from './track3d'
 import { createCar, type CarVisual } from './car3d'
 import { TYRES } from '../../core/tyres'
+import { createCommentaryDisplay } from '../../media/commentary-display'
+import { assessCompliance } from '../../drivers/agency'
+import { regulationsForYear, teamOrderAvailability } from '../../regulations/regulations'
 import type { Championship } from '../../core/types'
 import * as liveModule from '../../sim/live-race'
 import type { LiveRaceEngine } from '../../sim/live-race'
@@ -50,11 +53,12 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   const followBar = el('div', { class: 'b3d-follow-bar' })
   const battleStack = el('div', { class: 'b3d-battle-stack' })
   const radioFeed = el('div', { class: 'b3d-radio-feed' })
+  const commentaryFeed = el('div', { class: 'b3d-commentary' })
   const strategyPanel = el('div', { class: 'b3d-strategy' })
   const timingMini = el('div', { class: 'b3d-timing' })
   const controls = el('div', { class: 'broadcast-controls' })
 
-  stage.append(topHud, followBar, battleStack, radioFeed, strategyPanel, timingMini)
+  stage.append(topHud, followBar, battleStack, commentaryFeed, radioFeed, strategyPanel, timingMini)
   wrap.append(stage)
   root.appendChild(wrap)
   root.appendChild(controls)
@@ -69,6 +73,7 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   let running = true
   let battleNotifications: Array<BattleGroup & { shownAt: number }> = []
   const cameraMode: 'heli' | 'map' = 'heli'
+  const commentary = createCommentaryDisplay()
   // Local-mode race state
   let localEngine: LiveRaceEngine | null = null
   let cursorSeconds = 0
@@ -335,9 +340,17 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       }, TYRES[compound as keyof typeof TYRES].name))
     }
     const ordersRow = el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' },
-      el('button', { class: 'small', onclick: () => sendCommand({ teamId: snapshot.myTeamId, driverId: car.driverId, command: 'TEAM_ORDER_DO_NOT_FIGHT' }) }, 'Hold position'),
-      el('button', { class: 'small', onclick: () => sendCommand({ teamId: snapshot.myTeamId, driverId: car.driverId, command: 'TEAM_ORDER_FREE' }) }, 'Free to race'),
+      orderButton(snapshot, car, 'TEAM_ORDER_HOLD', 'Hold position', 'Hold'),
+      orderButton(snapshot, car, 'TEAM_ORDER_DO_NOT_FIGHT', 'Don\'t fight teammate', 'Coexist'),
+      orderButton(snapshot, car, 'TEAM_ORDER_SWAP', 'Swap positions', 'Swap'),
+      orderButton(snapshot, car, 'TEAM_ORDER_PRIORITY_DRIVER', 'Prioritize this driver', 'Priority'),
+      orderButton(snapshot, car, 'TEAM_ORDER_FREE', 'Free to race', 'Free'),
     )
+    // Team order availability explanation (per Pitwall Dynasty UX rule)
+    const orderContext = teamOrderContext(snapshot, car, champ)
+    if (orderContext) {
+      ordersRow.appendChild(el('div', { class: 'b3d-order-explain', html: orderContext }))
+    }
     strategyPanel.append(
       el('div', { class: 'b3d-strat-controls' },
         el('div', { class: 'b3d-ctl-label' }, 'PACE'), paceGroup,
@@ -353,6 +366,96 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       el('span', {}, label),
       el('span', { style: color ? `color:${color}` : '', html: valueHtml }),
     )
+  }
+
+  /**
+   * Determine the team order availability for the car and build a coloured
+   * button. "PROHIBITED" disables + explains; "RISKY" warns; "AVAILABLE"
+   * is normal. Driver verdict uses the live engine compliance calculator
+   * when available (multiplayer) and falls back to a state-based estimate
+   * from the driver record in local mode.
+   */
+  function orderButton(snapshot: RaceSnapshot, car: { driverId: string }, cmd: string, label: string, short: string) {
+    if (!champ) return el('button', { class: 'small' }, short)
+    const regs = regulationsForYear(champ.config.season)
+    const avail = teamOrderAvailability(regs)
+    const isSwapOrPriority = cmd === 'TEAM_ORDER_SWAP' || cmd === 'TEAM_ORDER_PRIORITY_DRIVER'
+    const isDirectOrder = cmd === 'TEAM_ORDER_SWAP' || cmd === 'TEAM_ORDER_PRIORITY_DRIVER' || cmd === 'TEAM_ORDER_HOLD'
+    const isProhibitedDirect = isDirectOrder && avail.directOrders === 'PROHIBITED'
+    const isCodedOnly = avail.codedOrders === 'RISKY'
+    // Driver verdict comes from agency state when present (championship-scoped);
+    // otherwise from the driver's hidden traits (always-on heuristic).
+    const driver = champ.drivers[car.driverId]
+    const agency = (champ as unknown as { _agency?: { get?: (id: string) => unknown } })._agency?.get?.(car.driverId) as
+      | { trustInTeam: number; morale: number; teammateRelationship: number; championshipAmbition: number; promises?: { description: string; broken: boolean }[] }
+      | undefined
+    let driverVerdict: 'Very Likely' | 'Likely' | 'Uncertain' | 'Unlikely' | 'Very Unlikely' | null = null
+    let driverReasons: string[] = []
+    if (driver && agency) {
+      const order = cmd === 'TEAM_ORDER_SWAP' ? 'swap'
+        : cmd === 'TEAM_ORDER_HOLD' ? 'hold'
+        : cmd === 'TEAM_ORDER_DO_NOT_FIGHT' ? 'doNotFight'
+        : 'priority'
+      const a = assessCompliance(driver, agency as never, order, {
+        teammateRelationship: agency.teammateRelationship,
+        isChampionshipContender: agency.championshipAmbition > 70 && agency.morale > 55,
+        positionGap: 0,
+      })
+      driverVerdict = a.verdict
+      driverReasons = a.reasons
+    } else if (driver) {
+      // Local mode heuristic: use driver trait + dynamic state directly
+      const prof = (driver.visible.feedback + driver.hidden.pressureResistance) / 2
+      const ego = driver.hidden.ego
+      const aggr = driver.hidden.aggression
+      let score = 70
+      score += (prof - 60) * 0.5
+      score -= (ego - 50) * 0.4
+      score -= (aggr - 50) * 0.25
+      score += (driver.dynamic.morale - 60) * 0.35
+      if (cmd === 'TEAM_ORDER_SWAP' || cmd === 'TEAM_ORDER_PRIORITY_DRIVER') score -= 8
+      score = Math.max(0, Math.min(100, Math.round(score)))
+      driverVerdict = score >= 85 ? 'Very Likely' : score >= 65 ? 'Likely' : score >= 40 ? 'Uncertain' : score >= 20 ? 'Unlikely' : 'Very Unlikely'
+      if (prof >= 80) driverReasons.push('high professionalism')
+      if (ego > 75) driverReasons.push('large ego')
+      if (driver.dynamic.morale < 40) driverReasons.push('low morale')
+    }
+    let badge: string | null = null
+    let disabled = false
+    let titleText = label
+    if (isProhibitedDirect) {
+      badge = 'PROHIBITED'
+      disabled = true
+      titleText = `${label} — ${avail.explanation}`
+    } else if (isCodedOnly && isSwapOrPriority) {
+      badge = 'RISKY'
+      titleText = `${label} — coded order under ${regs.eraName} (${regs.year}). Risk: steward scrutiny, fine, points penalty.`
+    } else if (driverVerdict === 'Unlikely' || driverVerdict === 'Very Unlikely') {
+      badge = 'DRIVER UNCERTAIN'
+      titleText = `${label}\nLikely response: ${driverVerdict.toUpperCase()}\nReasons: ${driverReasons.join(', ') || 'driver state'}`
+    } else if (driverVerdict === 'Uncertain') {
+      badge = 'RISKY'
+      titleText = `${label}\nLikely response: ${driverVerdict}`
+    }
+    const cls = `small${disabled ? ' disabled-action' : badge ? ' warn-action' : ''}`
+    const btn = el('button', {
+      class: cls,
+      title: titleText,
+      disabled,
+      onclick: () => sendCommand({ teamId: snapshot.myTeamId, driverId: car.driverId, command: cmd }),
+    }, short)
+    if (badge) {
+      btn.appendChild(el('span', { class: `b3d-order-badge ${badge === 'PROHIBITED' ? 'bad' : badge === 'DRIVER UNCERTAIN' ? 'bad' : 'warn'}` }, badge))
+    }
+    return btn
+  }
+
+  /** Compact HTML for the order context line: era + driver verdict summary. */
+  function teamOrderContext(_snapshot: RaceSnapshot, _car: { driverId: string }, championship: typeof champ): string | null {
+    if (!championship) return null
+    const regs = regulationsForYear(championship.config.season)
+    const avail = teamOrderAvailability(regs)
+    return `<strong>${avail.directOrders}</strong> · ${avail.explanation}`
   }
 
   // --- Timing mini tower ---
@@ -395,6 +498,36 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     }
   }
 
+  // --- Commentary feed (LEAD / ANALYST) ---
+  function updateCommentary(snapshot: RaceSnapshot) {
+    if (!champ) return
+    const revealed = (snapshot.events as Array<{ t: number; type: string; driverId?: string; teamId?: string; detail: string }>).map((e) => ({
+      t: e.t, type: e.type as never, driverId: e.driverId, teamId: e.teamId, detail: e.detail,
+    }))
+    const newLines = commentary.push(revealed, champ.drivers, { totalLaps: snapshot.totalLaps })
+    if (newLines.length === 0) return
+    // Render the headline of the latest moment at the top (1 line),
+    // and a small "commentary ribbon" below.
+    const last = newLines[newLines.length - 1]
+    commentaryFeed.innerHTML = ''
+    const ribbon = el('div', { class: `b3d-commentary-ribbon role-${last.role}` },
+      el('div', { class: 'b3d-commentary-role' }, last.role === 'lead' ? '🎙 LEAD' : '🎚 ANALYST'),
+      el('div', { class: 'b3d-commentary-text' }, last.text),
+    )
+    commentaryFeed.appendChild(ribbon)
+    // Compact history of recent lines (last 5)
+    if (commentary.lines.length > 1) {
+      const tail = el('div', { class: 'b3d-commentary-tail' })
+      for (const l of commentary.lines.slice(-6, -1)) {
+        tail.appendChild(el('div', { class: `b3d-commentary-line role-${l.role}` },
+          el('span', { class: 'b3d-commentary-mini' }, l.role === 'lead' ? '🎙' : '🎚'),
+          el('span', {}, l.text),
+        ))
+      }
+      commentaryFeed.appendChild(tail)
+    }
+  }
+
   // --- Controls ---
   const speedGroup = el('div', { class: 'seg-group' })
   for (const s of [1, 2, 4, 8]) {
@@ -433,6 +566,7 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     updateTiming(race)
     updateTopHud(race)
     pushRadio(race.radio)
+    updateCommentary(race)
     refreshSpeedButtons()
   })
 
@@ -511,6 +645,13 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     const packages: import('../../core/types').RacePackage[] = []
     for (const team of champ.teams) {
       packages.push(...buildTeamRacePackages(champ, team, round))
+    }
+    // Pass practice bonuses from round.practiceBonus into the package so the
+    // local engine can consume them via liveLapTime().
+    const practiceByTeam = round.practiceBonus ?? {}
+    for (const pkg of packages) {
+      const b = practiceByTeam[pkg.teamId]
+      if (b !== undefined) (pkg as unknown as { practiceBonus?: number }).practiceBonus = b
     }
     // Qualifying from the deterministic path
     const { simulateQualifying } = qualiModule
@@ -659,6 +800,7 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
         updateTiming(race)
         updateTopHud(race)
         pushRadio(race.radio)
+        updateCommentary(race)
       }
     } else {
       statePollAccum += dt

@@ -1,7 +1,7 @@
 import { el, toast } from './dom'
 import { store } from '../state/store'
 import { createChampionship } from '../championship/create'
-import { START_YEARS } from '../regulations/regulations'
+import { START_YEARS, regulationsForYear } from '../regulations/regulations'
 import type { Championship } from '../core/types'
 
 /** Championship creation screen (Fast Championship / Career configuration). */
@@ -35,11 +35,12 @@ export function renderNewChampionship(root: HTMLElement, mode: Championship['mod
               { value: 'real', label: 'Real Career', desc: 'Historical shadow timeline — eras follow real-world trends' },
             ], careerKind, (v) => { careerKind = v as 'fictional' | 'real'; rebuild() })),
           field('Starting era',
-            selectEra(eraYear, (v) => { eraYear = v })),
+            selectEra(eraYear, (v) => { eraYear = v; rebuild() })),
         ]
       : []
     body.append(
       ...careerFields,
+      ...(mode === 'career' ? [eraSummary(eraYear)] : []),
       field('Your team name (optional)', inputText(teamName, (v) => (teamName = v), 'e.g. Falcon Apex Racing')),
       field('Number of teams', slider(4, 11, teamCount, (v) => (teamCount = v))),
       field('Races in season', slider(2, 16, races, (v) => (races = v))),
@@ -67,6 +68,7 @@ export function renderNewChampionship(root: HTMLElement, mode: Championship['mod
                 managementPhaseSeconds: mgmtSeconds,
                 weatherEnabled: weather,
                 equalTeams,
+                ...(mode === 'career' ? { careerKind, eraYear } : {}),
               },
               {
                 playerTeamIndex: -1,
@@ -172,4 +174,22 @@ function selectEra(current: number, onChange: (v: number) => void): HTMLElement 
   }
   sel.addEventListener('change', () => onChange(Number(sel.value)))
   return sel
+}
+
+function eraSummary(year: number): HTMLElement {
+  const regs = regulationsForYear(year)
+  const summary = el('div', { class: 'era-summary' },
+    el('h4', {}, `${regs.eraName} (${regs.year})`),
+    el('div', { class: 'era-grid' },
+      el('div', {}, el('span', { class: 'era-label' }, 'Team orders'), el('span', {}, regs.teamOrders)),
+      el('div', {}, el('span', { class: 'era-label' }, 'Position swaps'), el('span', {}, regs.positionSwapOrders)),
+      el('div', {}, el('span', { class: 'era-label' }, 'Qualifying'), el('span', {}, regs.qualifyingFormat)),
+      el('div', {}, el('span', { class: 'era-label' }, 'Refuelling'), el('span', {}, regs.refuelling ? 'Allowed' : 'Banned')),
+      el('div', {}, el('span', { class: 'era-label' }, 'Tyre compounds'), el('span', {}, String(regs.tyreCompoundCount))),
+      el('div', {}, el('span', { class: 'era-label' }, 'Points (top 3)'), el('span', {}, `${regs.pointsSystem[0]}/${regs.pointsSystem[1]}/${regs.pointsSystem[2]}`)),
+      el('div', {}, el('span', { class: 'era-label' }, 'Cost cap'), el('span', {}, regs.costCap ? 'Yes' : 'No')),
+      el('div', {}, el('span', { class: 'era-label' }, 'Safety car'), el('span', {}, regs.safetyCarRules)),
+    ),
+  )
+  return summary
 }
