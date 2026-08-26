@@ -296,7 +296,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
 }
 
 .b3d-commentary {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 6;
+  position: absolute; top: 96px; left: 50%; transform: translateX(-50%); z-index: 6;
   display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 680px; width: calc(100% - 500px); pointer-events: none;
 }
 .b3d-commentary-ribbon {
@@ -335,7 +335,8 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
 
 .b3d-strategy {
   position: absolute; bottom: 14px; right: 12px; z-index: 6;
-  width: 300px; background: rgba(10,14,19,.92); border: 1px solid var(--line);
+  width: 320px; max-width: 38vw; max-height: calc(100% - 80px); overflow-y: auto;
+  background: rgba(10,14,19,.92); border: 1px solid var(--line);
   border-radius: 8px; padding: 12px; backdrop-filter: blur(6px);
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -511,4 +512,33 @@ button.warn-action { border-color: rgba(242, 199, 68, 0.6); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+
+/* ---------- Lobby screen ---------- */
+.lobby-status { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
+.lobby-status input { background: var(--bg-2); border: 1px solid var(--line); color: var(--text-0); padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+.lobby-code-banner {
+  display: flex; align-items: baseline; gap: 12px;
+  background: linear-gradient(90deg, rgba(232,68,58,.18), rgba(232,68,58,.05));
+  border: 1px solid rgba(232,68,58,.4); border-left: 4px solid var(--accent);
+  padding: 14px 18px; border-radius: 6px; margin: 12px 0;
+}
+.lobby-kicker { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+.lobby-code { font-family: var(--mono); font-size: 28px; font-weight: 800; letter-spacing: 0.18em; color: var(--accent); }
+.lobby-sub { color: var(--text-1); font-size: 13px; }
+.lobby-phase { display: flex; align-items: center; gap: 4px; padding: 8px 0; color: var(--text-1); font-size: 13px; }
+.lobby-player { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.lobby-player:last-child { border-bottom: none; }
+.lobby-player-name { font-weight: 600; }
+.lobby-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.lobby-team-card {
+  background: var(--bg-2); border: 1px solid var(--line); border-left-width: 4px;
+  border-radius: 6px; padding: 12px 14px; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; color: var(--text-0);
+  font: inherit;
+}
+.lobby-team-card:hover:not(.taken) { background: var(--bg-3); border-color: var(--accent-2); }
+.lobby-team-card.taken { opacity: 0.55; cursor: not-allowed; }
+.lobby-team-card.mine { background: rgba(232,68,58,.12); border-color: var(--accent); }
+.lobby-team-name { font-weight: 700; font-size: 14px; }
+.lobby-team-meta { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }

@@ -15,6 +15,7 @@ export function renderMenu(root: HTMLElement) {
     el('div', { class: 'menu-cards' },
       menuCard('Quick Start', 'Jump straight into a Fast Championship: 10 teams, 5 rounds, you vs the AI paddock.', () => quickStart()),
       menuCard('Fast Championship', 'Configure teams, races, timers and rules for one shared session.', () => openChampConfig('fast')),
+      menuCard('Multiplayer', 'Host or join a real-time Fast Championship with friends. Authoritative server, shared broadcast.', () => openMultiplayer()),
       menuCard('Solo Career', 'Multiple seasons, driver market, facilities and development — at your own pace.', () => openChampConfig('career')),
     ),
     el('div', { class: 'menu-cards' },
@@ -51,6 +52,10 @@ function quickStart() {
 
 function openChampConfig(mode: Championship['mode']) {
   location.hash = '#/new/' + mode
+}
+
+function openMultiplayer() {
+  location.hash = '#/lobby'
 }
 
 function tryContinue(_root: HTMLElement) {

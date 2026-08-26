@@ -18,6 +18,12 @@ function roundSeedFor(champ: Championship, roundIndex: number): number {
   return ((champ.rngSeed ^ (roundIndex * 2654435761) ^ (champ.config.season * 40503)) >>> 0)
 }
 
+/** Parse ?code=XXXX from the current URL hash. */
+function codeFromHash(): string | undefined {
+  const m = /[?&]code=([A-Z0-9]+)/i.exec(location.hash)
+  return m ? m[1] : undefined
+}
+
 /**
  * 3D Race Broadcast — helicopter-camera presentation of the live
  * server-authoritative race. Driver-follow default, battle notifications,
@@ -40,6 +46,8 @@ interface BattleGroup {
 
 export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   root.innerHTML = ''
+  const codeFromUrl = codeFromHash()
+  if (codeFromUrl) joinCode = codeFromUrl
   const champ: Championship | null = store.champ
 
   // --- Layout ---

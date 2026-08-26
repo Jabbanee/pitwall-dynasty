@@ -10,6 +10,7 @@ import { renderBroadcast3D } from './three/broadcast3d'
 import { renderResults } from './results'
 import { renderPaddockPost } from './paddock-post'
 import { renderDevTools } from './devtools'
+import { renderLobby } from './lobby'
 import { startDevelopment, startFacilityUpgrade } from '../championship/engine'
 import { SPONSORS } from '../core/content'
 import type { Team, DevelopmentProject, CarPerformance, PartStatModifiers } from '../core/types'
@@ -47,6 +48,15 @@ function route() {
     renderShell(app, null)
     const root = pageRoot()
     renderNewChampionship(root, mode)
+    return
+  }
+
+  // Multiplayer lobby (no shell — full screen)
+  if (hash.startsWith('#/lobby')) {
+    app.innerHTML = ''
+    const root = pageRoot()
+    const action = hash.includes('join') ? 'join' : 'create'
+    renderLobby(root, action)
     return
   }
 
