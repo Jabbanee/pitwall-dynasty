@@ -3,3 +3,4 @@ dist
 coverage
 _Bak
 *.log
+.playwright-mcp
