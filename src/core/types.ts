@@ -383,12 +383,16 @@ export interface RacePackageDriverEntry {
   instructions: string
 }
 
-/** Immutable snapshot of everything needed to simulate one car's race. */
+/** Immutable snapshot of everything needed to simulate ONE car's race. */
 export interface RacePackage {
   championshipId: Id
   roundId: Id
   teamId: TeamId
-  drivers: RacePackageDriverEntry[]
+  /** The single driver racing this car. */
+  driverId: DriverId
+  /** Teammate driver id (for team orders / battles), if any. */
+  teammateId?: DriverId
+  carNumber: number
   selectedParts: Record<PartSlotId, string> // part name per slot (fitted designs)
   carPerformance: CarPerformance
   componentWear: Record<PartSlotId, number> // 0 fresh .. 1 worn
@@ -412,7 +416,7 @@ export interface QualifyingPackage {
   championshipId: Id
   roundId: Id
   teamId: TeamId
-  driverIds: DriverId[]
+  driverId: DriverId
   carPerformance: CarPerformance
   setup: SetupChoice
   qualiTyre: TyreCompoundId

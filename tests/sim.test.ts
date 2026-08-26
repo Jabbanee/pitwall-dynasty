@@ -7,24 +7,28 @@ import { finalizePackage } from '../src/championship/engine'
 
 function makePackages(count: number): RacePackage[] {
   const teams = buildDefaultTeams().slice(0, count)
-  return teams.map((t) =>
-    finalizePackage({
-      championshipId: 'test',
-      roundId: '0',
-      teamId: t.id,
-      drivers: t.driverIds.map((d) => ({ driverId: d, instructions: '' })),
-      selectedParts: {} as RacePackage['selectedParts'],
-      carPerformance: t.carPerformance,
-      componentWear: { frontWing: 0, rearWing: 0, floor: 0, chassis: 0, suspension: 0, cooling: 0 },
-      setup: { downforceBias: 0, mechanicalGripBias: 0, brakeBias: 56 },
-      tyreAllocation: {},
-      strategy: defaultStrategy(20),
-      reliability: 80,
-      staffModifiers: { strategySkill: 70, pitCrewSkill: 70, engineerSkill: 70 },
-      weatherForecast: { condition: 'dry', rainProbability: 0, confidence: 0.8 },
-      version: 1,
-      lockedAt: Date.now(),
-    }),
+  return teams.flatMap((t) =>
+    t.driverIds.slice(0, 2).map((driverId, ci) =>
+      finalizePackage({
+        championshipId: 'test',
+        roundId: '0',
+        teamId: t.id,
+        driverId,
+        teammateId: t.driverIds.find((d) => d !== driverId),
+        carNumber: ci + 1,
+        selectedParts: {} as RacePackage['selectedParts'],
+        carPerformance: t.carPerformance,
+        componentWear: { frontWing: 0, rearWing: 0, floor: 0, chassis: 0, suspension: 0, cooling: 0 },
+        setup: { downforceBias: 0, mechanicalGripBias: 0, brakeBias: 56 },
+        tyreAllocation: {},
+        strategy: defaultStrategy(20),
+        reliability: 80,
+        staffModifiers: { strategySkill: 70, pitCrewSkill: 70, engineerSkill: 70 },
+        weatherForecast: { condition: 'dry', rainProbability: 0, confidence: 0.8 },
+        version: 1,
+        lockedAt: Date.now(),
+      }),
+    ),
   )
 }
 
@@ -53,7 +57,7 @@ describe('race simulation determinism', () => {
 
   it('produces exactly one winner and sane classification', () => {
     const result = simulateRace({ roundId: '0', circuit, packages: makePackages(10), drivers: driverMap, seed: 99, weatherEnabled: false })
-    expect(result.results.length).toBe(10)
+    expect(result.results.length).toBe(20) // 10 teams × 2 drivers
     const winner = result.results[0]
     expect(winner.classified).toBe(true)
     expect(winner.finishPosition).toBe(1)
@@ -64,6 +68,16 @@ describe('race simulation determinism', () => {
     const totalPoints = result.results.reduce((s, r) => s + r.points, 0)
     expect(totalPoints).toBeGreaterThan(0)
     expect(totalPoints).toBeLessThanOrEqual(25 + 18 + 15 + 12 + 10 + 8 + 6 + 4 + 2 + 1 + 1)
+  })
+
+  it('fields two cars per team — both score toward team totals', () => {
+    const result = simulateRace({ roundId: '0', circuit, packages: makePackages(10), drivers: driverMap, seed: 123, weatherEnabled: false })
+    const teamIds = new Set(result.results.map((r) => r.teamId))
+    expect(teamIds.size).toBe(10)
+    // Every team has exactly 2 entries
+    for (const teamId of teamIds) {
+      expect(result.results.filter((r) => r.teamId === teamId).length).toBe(2)
+    }
   })
 
   it('timeline is time-sorted and non-empty', () => {
@@ -87,7 +101,7 @@ describe('race simulation determinism', () => {
     expect(rate).toBeGreaterThan(0)
   })
 
-  it('simulates a full race fast (well under real-time)', () => {
+  it('simulates a full 20-car race fast (well under real-time)', () => {
     const start = performance.now()
     simulateRace({ roundId: 'perf', circuit, packages: makePackages(10), drivers: driverMap, seed: 31415, weatherEnabled: true })
     const elapsed = performance.now() - start
@@ -96,7 +110,7 @@ describe('race simulation determinism', () => {
 })
 
 describe('qualifying', () => {
-  it('assigns unique grid positions sorted by lap time', () => {
+  it('assigns unique grid positions sorted by lap time (one row per car)', () => {
     const q = simulateQualifying({
       roundId: '0',
       circuit,
@@ -104,7 +118,7 @@ describe('qualifying', () => {
         championshipId: p.championshipId,
         roundId: p.roundId,
         teamId: p.teamId,
-        driverIds: p.drivers.map((d) => d.driverId),
+        driverId: p.driverId,
         carPerformance: p.carPerformance,
         setup: p.setup,
         qualiTyre: 'soft' as const,

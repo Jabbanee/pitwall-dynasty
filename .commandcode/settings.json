@@ -25,7 +25,8 @@
       "Shell(del broadcast-check.png broadcast-check2.png broadcast-check3.png broadcast4.png results1.png standings1.png 2>nul & npm run build 2>&1)",
       "Shell(npx tsc --noEmit)",
       "Shell(git add -A && git commit -F - <<'EOF' Initial build: complete playable Pitwall Dynasty core - Deterministic headless race simulator (seeded PRNG, event timeline, tyres with wet crossover, weather, safety cars, incidents, reliability, rules-driven strategy engine shared by players and AI) - Championship engine: standings, economy, sponsors, development projects, facilities, contracts, driver market, season progression with history - Broadcast system: shared cursor, 1x-8x speed, pause/rewind voting rules, auto-director, 5 camera modes, canvas track + timing tower - UI: menu with Quick Start, HQ dashboard, race weekend management phase, results, standings, drivers/staff/development/facilities/finances/ sponsors/news screens, dev tools with batch simulation + mod validation - Fictional content pack: 10 teams, 24 drivers, 10 circuits, 12 sponsors, 21 staff; mod manifest format + sample mod + validation - Save/load with schema versioning; 23 Vitest tests passing Co-authored-by: CommandCodeBot <noreply@commandcode.ai> EOF)",
-      "Shell(git:*)"
+      "Shell(git:*)",
+      "Shell(powershell -Command \"node -e \\\"const p=require('./node_modules/three/package.json'); console.log(p.version)\\\"\")"
     ],
     "deny": [],
     "defaultMode": "default"

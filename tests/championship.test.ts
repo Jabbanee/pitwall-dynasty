@@ -30,11 +30,8 @@ describe('championship lifecycle', () => {
     expect(round.packagesLocked).toBe(true)
     expect(round.qualifyingDone).toBe(true)
     expect(round.raceDone).toBe(true)
-    expect(round.qualifyingResult!.rows.length).toBe(20) // 2 drivers per team
-    // Grid for the race takes each team's best qualifier: 10 unique teams
-    const qualiTeams = new Set(round.qualifyingResult!.rows.slice(0, 10).map((r) => r.teamId))
-    expect(qualiTeams.size).toBeLessThanOrEqual(10)
-    expect(round.raceResult!.results.length).toBe(10)
+    expect(round.qualifyingResult!.rows.length).toBe(20) // 2 cars per team
+    expect(round.raceResult!.results.length).toBe(20)
     // Standings accumulate
     const st = engine.standings()
     expect(st.teamRows.reduce((s, r) => s + r.points, 0)).toBeGreaterThan(0)

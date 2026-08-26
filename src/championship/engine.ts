@@ -28,15 +28,19 @@ function clamp(v: number, lo: number, hi: number) {
 // Race packages — immutable snapshots at lock time
 // ---------------------------------------------------------------------------
 
-export function buildRacePackage(champ: Championship, team: Team, round: RoundState): RacePackage {
+/** Build ONE car's race package. Call once per driver (2 cars per team). */
+export function buildRacePackage(champ: Championship, team: Team, round: RoundState, driverId: string, carNumber: number): RacePackage {
   const circuit = champ.circuits.find((c) => c.id === round.circuitId)!
   const perf = structuredClone(team.carPerformance)
   const setup = defaultSetup()
+  const teammateId = team.driverIds.find((d) => d !== driverId)
   return finalizePackage({
     championshipId: champ.id,
     roundId: `${round.index}`,
     teamId: team.id,
-    drivers: team.driverIds.map((d) => ({ driverId: d, instructions: '' })),
+    driverId,
+    teammateId,
+    carNumber,
     selectedParts: Object.fromEntries(PART_SLOTS.map((s) => [s, team.parts[s]?.name ?? `Standard ${PART_SLOT_NAMES[s]}`])) as RacePackage['selectedParts'],
     carPerformance: perf,
     componentWear: Object.fromEntries(PART_SLOTS.map((s) => [s, 0])) as RacePackage['componentWear'],
@@ -55,25 +59,34 @@ export function buildRacePackage(champ: Championship, team: Team, round: RoundSt
   })
 }
 
+/** Build both cars' race packages for a team. */
+export function buildTeamRacePackages(champ: Championship, team: Team, round: RoundState): RacePackage[] {
+  return team.driverIds.slice(0, 2).map((driverId, i) => buildRacePackage(champ, team, round, driverId, i + 1))
+}
+
 export function finalizePackage(pkg: Omit<RacePackage, 'hash'>): RacePackage {
   // Deterministic hash of the package content
   const hash = fnv1a(JSON.stringify({ ...pkg, hash: '' }))
   return { ...pkg, hash }
 }
 
-export function buildQualifyingPackage(champ: Championship, team: Team, round: RoundState): QualifyingPackage {
+export function buildQualifyingPackage(champ: Championship, team: Team, round: RoundState, driverId: string): QualifyingPackage {
   const perf = structuredClone(team.carPerformance)
   return {
     championshipId: champ.id,
     roundId: `${round.index}`,
     teamId: team.id,
-    driverIds: [...team.driverIds],
+    driverId,
     carPerformance: perf,
     setup: defaultSetup(),
     qualiTyre: 'soft',
     version: 1,
-    hash: fnv1a(`${champ.id}|${round.index}|${team.id}|quali|${JSON.stringify(perf)}`),
+    hash: fnv1a(`${champ.id}|${round.index}|${team.id}|${driverId}|quali|${JSON.stringify(perf)}`),
   }
+}
+
+export function buildTeamQualifyingPackages(champ: Championship, team: Team, round: RoundState): QualifyingPackage[] {
+  return team.driverIds.slice(0, 2).map((driverId) => buildQualifyingPackage(champ, team, round, driverId))
 }
 
 export function defaultSetup(): SetupChoice {

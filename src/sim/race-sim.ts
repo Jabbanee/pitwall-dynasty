@@ -145,19 +145,18 @@ export function simulateQualifying(input: {
   const rows: QualifyingResult['rows'] = []
   for (const p of input.packages) {
     const carPace = carPaceForCircuit(p.carPerformance, input.circuit)
-    for (const driverId of p.driverIds) {
-      const drv = input.drivers[driverId]
-      if (!drv) continue
-      const qualiSkill = drv.visible.qualifying * 0.65 + drv.visible.pace * 0.35
-      const score = carPace * 0.58 + qualiSkill * 0.42
-      let t = BASE_LAP_SECONDS - (score - 70) * 0.44
-      t -= input.circuit.characteristics.trackEvolution * 1.0
-      t += rng.gauss(0, 0.34)
-      if (input.weatherForecast.rainProbability > 0.35 && rng.chance(0.28)) {
-        t += rng.range(3, 12) // caught out in a wet Q
-      }
-      rows.push({ driverId, teamId: p.teamId, lapTime: Math.round(t * 1000) / 1000, gridPosition: 0 })
+    const driverId = p.driverId
+    const drv = input.drivers[driverId]
+    if (!drv) continue
+    const qualiSkill = drv.visible.qualifying * 0.65 + drv.visible.pace * 0.35
+    const score = carPace * 0.58 + qualiSkill * 0.42
+    let t = BASE_LAP_SECONDS - (score - 70) * 0.44
+    t -= input.circuit.characteristics.trackEvolution * 1.0
+    t += rng.gauss(0, 0.34)
+    if (input.weatherForecast.rainProbability > 0.35 && rng.chance(0.28)) {
+      t += rng.range(3, 12) // caught out in a wet Q
     }
+    rows.push({ driverId, teamId: p.teamId, lapTime: Math.round(t * 1000) / 1000, gridPosition: 0 })
   }
   rows.sort((a, b) => a.lapTime - b.lapTime)
   rows.forEach((r, i) => (r.gridPosition = i + 1))
@@ -189,10 +188,13 @@ export function simulateRace(input: SimulateRaceInput): RaceResult {
   }
 
   // ----- Build sim cars in grid order -----
+  // Each package entry is ONE car (driver). A team with two drivers sends two
+  // packages — one per car — sharing team performance but with per-driver
+  // strategy. The caller is responsible for building both car packages.
   const cars: SimCar[] = []
   for (let i = 0; i < input.packages.length; i++) {
     const pkg = input.packages[i]
-    const driverId = pkg.drivers[0]?.driverId
+    const driverId = pkg.driverId
     const driver = driverId ? input.drivers[driverId] : undefined
     if (!driver) continue
     const wearVals = Object.values(pkg.componentWear ?? {})

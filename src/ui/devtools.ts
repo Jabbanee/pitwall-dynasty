@@ -97,21 +97,25 @@ export function renderDevTools(root: HTMLElement) {
       const circuit = CIRCUITS[0]
       const teams = buildDefaultTeams().slice(0, 10)
       const driverMap = Object.fromEntries(DRIVERS.map((d) => [d.id, d]))
-      const packages: RacePackage[] = teams.map((t) =>
-        finalizePackage({
-          championshipId: 'batch', roundId: '0', teamId: t.id,
-          drivers: t.driverIds.map((d) => ({ driverId: d, instructions: '' })),
-          selectedParts: {} as never,
-          carPerformance: t.carPerformance,
-          componentWear: { frontWing: 0, rearWing: 0, floor: 0, chassis: 0, suspension: 0, cooling: 0 },
-          setup: { downforceBias: 0, mechanicalGripBias: 0, brakeBias: 56 },
-          tyreAllocation: {},
-          strategy: defaultStrategyFor(circuit.characteristics.laps),
-          reliability: 80,
-          staffModifiers: { strategySkill: 70, pitCrewSkill: 70, engineerSkill: 70 },
-          weatherForecast: { condition: 'dry', rainProbability: 0.15, confidence: 0.8 },
-          version: 1, lockedAt: Date.now(),
-        }),
+      const packages: RacePackage[] = teams.flatMap((t) =>
+        t.driverIds.slice(0, 2).map((driverId, ci) =>
+          finalizePackage({
+            championshipId: 'batch', roundId: '0', teamId: t.id,
+            driverId,
+            teammateId: t.driverIds.find((d) => d !== driverId),
+            carNumber: ci + 1,
+            selectedParts: {} as never,
+            carPerformance: t.carPerformance,
+            componentWear: { frontWing: 0, rearWing: 0, floor: 0, chassis: 0, suspension: 0, cooling: 0 },
+            setup: { downforceBias: 0, mechanicalGripBias: 0, brakeBias: 56 },
+            tyreAllocation: {},
+            strategy: defaultStrategyFor(circuit.characteristics.laps),
+            reliability: 80,
+            staffModifiers: { strategySkill: 70, pitCrewSkill: 70, engineerSkill: 70 },
+            weatherForecast: { condition: 'dry', rainProbability: 0.15, confidence: 0.8 },
+            version: 1, lockedAt: Date.now(),
+          }),
+        ),
       )
       const wins: Record<string, number> = {}
       const podiums: Record<string, number> = {}

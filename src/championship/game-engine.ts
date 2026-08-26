@@ -1,8 +1,7 @@
 import { simulateQualifying, simulateRace } from '../sim/race-sim'
 import {
   addNews,
-  buildRacePackage,
-  buildQualifyingPackage,
+  buildTeamRacePackages,
   computeStandings,
   endSeason,
   settleRoundFinances,
@@ -56,21 +55,32 @@ export class GameEngine {
     if (round.packagesLocked) return { seed: roundSeed(this.champ, round.index) }
     const seed = seedOverride ?? roundSeed(this.champ, round.index)
 
-    // Build immutable race packages for every team
+    // Build immutable race packages: TWO cars per team, one per driver
+    const allPackages: RacePackage[] = []
     for (const team of this.champ.teams) {
-      let pkg = buildRacePackage(this.champ, team, round)
-      // Apply team's saved strategy/setup if present (set via updateStrategy)
       const saved = this.pendingStrategy.get(team.id)
-      if (saved) {
-        pkg = { ...pkg, strategy: mergeStrategy(pkg.strategy, saved.strategy ?? {}), setup: saved.setup ?? pkg.setup }
-        pkg = finalizePkg(pkg)
+      for (const pkg of buildTeamRacePackages(this.champ, team, round)) {
+        let out = pkg
+        if (saved) {
+          out = finalizePkg({ ...pkg, strategy: mergeStrategy(pkg.strategy, saved.strategy ?? {}), setup: saved.setup ?? pkg.setup })
+        }
+        allPackages.push(out)
       }
-      this.lockedPackages.set(team.id, pkg)
     }
     round.packagesLocked = true
 
-    // Qualifying
-    const qualiPkgs = this.champ.teams.map((team) => buildQualifyingPackage(this.champ, team, round))
+    // Qualifying — one entry per car (20+ rows for 10 teams)
+    const qualiPkgs = allPackages.map((pkg) => ({
+      championshipId: pkg.championshipId,
+      roundId: pkg.roundId,
+      teamId: pkg.teamId,
+      driverId: pkg.driverId,
+      carPerformance: pkg.carPerformance,
+      setup: pkg.setup,
+      qualiTyre: 'soft' as const,
+      version: 1,
+      hash: pkg.hash,
+    }))
     const qualiResult = simulateQualifying({
       roundId: `${round.index}`,
       circuit: this.circuitOf(round.index),
@@ -83,20 +93,18 @@ export class GameEngine {
     round.qualifyingDone = true
     round.phase = 'raceBroadcast'
 
-    // Sort race packages into grid order for the simulator
-    const gridOrderTeams = qualiResult.rows.map((r) => r.teamId)
-    const seen = new Set<string>()
+    // Grid order: qualifying rows are already one-per-car; match by driver
+    const byDriver = new Map(allPackages.map((p) => [p.driverId, p]))
     const orderedPackages: RacePackage[] = []
-    for (const teamId of gridOrderTeams) {
-      if (seen.has(teamId)) continue
-      seen.add(teamId)
-      const pkg = this.lockedPackages.get(teamId)
-      if (pkg) orderedPackages.push({ ...pkg, drivers: pkg.drivers.slice(0, 1) })
+    for (const row of qualiResult.rows) {
+      const pkg = byDriver.get(row.driverId)
+      if (pkg) {
+        orderedPackages.push(pkg)
+        byDriver.delete(row.driverId)
+      }
     }
-    // Safety: include any teams missing from quali (shouldn't happen)
-    for (const [teamId, pkg] of this.lockedPackages) {
-      if (!seen.has(teamId)) orderedPackages.push({ ...pkg, drivers: pkg.drivers.slice(0, 1) })
-    }
+    // Safety: any car missing from quali starts at the back
+    for (const pkg of byDriver.values()) orderedPackages.push(pkg)
 
     const raceResult = simulateRace({
       roundId: `${round.index}`,
