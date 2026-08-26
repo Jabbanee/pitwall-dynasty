@@ -48,6 +48,14 @@ export function createChampionship(
 ): Championship {
   const rng = createRng(options?.seed ?? (Date.now() ^ 0xabcdef) >>> 0)
   const config = defaultConfig(configOverrides)
+  // Career defaults: any career championship without explicit era is 2022,
+  // and the kind defaults to fictional.
+  if (mode === 'career' && config.careerKind === undefined) {
+    config.careerKind = 'fictional'
+  }
+  if (config.eraYear === undefined) {
+    config.eraYear = mode === 'career' ? 2022 : 2024
+  }
   const teamCount = options?.teamCount ?? 10
 
   const teams = buildDefaultTeams().slice(0, teamCount)

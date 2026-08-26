@@ -70,7 +70,7 @@ function migrateChampionship(c: Championship, from: number): Championship {
   // v1 -> v2: add careerKind, eraYear defaults; ensure round.practiceBonus
   if (from < 2) {
     if (!champ.config.careerKind) champ.config.careerKind = champ.mode === 'career' ? 'fictional' : undefined
-    if (!champ.config.eraYear) champ.config.eraYear = 2024
+    if (!champ.config.eraYear) champ.config.eraYear = champ.mode === 'career' ? 2022 : 2024
     for (const r of champ.rounds) {
       if (!r.practiceBonus) r.practiceBonus = {}
     }
