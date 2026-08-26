@@ -14,6 +14,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     for (const [k, v] of Object.entries(attrs)) {
       if (v === false || v === undefined || v === null) continue
       if (k === 'class') node.className = String(v)
+      else if (k === 'html') node.innerHTML = String(v)
       else if (k.startsWith('on') && typeof v === 'function') {
         node.addEventListener(k.slice(2).toLowerCase(), v as EventListener)
       } else if (typeof v !== 'function') {

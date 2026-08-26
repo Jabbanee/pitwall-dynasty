@@ -256,6 +256,74 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
   backdrop-filter: blur(4px);
 }
 
+/* ---------- 3D Broadcast ---------- */
+.broadcast3d-wrap { display: flex; flex-direction: column; height: calc(100vh - 52px); overflow: hidden; }
+.broadcast3d-stage { flex: 1; position: relative; background: #0a0e14; min-height: 0; }
+.broadcast3d-canvas { position: absolute; inset: 0; }
+.broadcast3d-canvas canvas { display: block; width: 100%; height: 100%; }
+
+.b3d-top-hud {
+  position: absolute; top: 10px; left: 12px; right: 12px; z-index: 6;
+  display: flex; align-items: center; gap: 14px; pointer-events: none;
+  font-size: 14px; font-weight: 700;
+}
+.b3d-top-hud .spacer { flex: 1; }
+
+.b3d-follow-bar {
+  position: absolute; top: 44px; left: 12px; z-index: 6;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.b3d-follow-bar button { background: rgba(10,14,19,.85); backdrop-filter: blur(4px); }
+.b3d-follow-bar button.selected { background: var(--accent-2); border-color: var(--accent-2); }
+.b3d-follow-bar .back-btn { border-color: var(--warn); color: var(--warn); }
+
+.b3d-battle-stack {
+  position: absolute; top: 44px; right: 12px; z-index: 6;
+  display: flex; flex-direction: column; gap: 8px; width: 240px;
+}
+.b3d-battle-card {
+  background: rgba(10,14,19,.9); border: 1px solid var(--accent-2); border-radius: 6px;
+  padding: 10px 12px; backdrop-filter: blur(4px);
+  animation: slideIn .2s ease-out;
+}
+.b3d-battle-title { font-size: 12px; font-weight: 700; color: #7aa5f5; text-transform: uppercase; letter-spacing: .05em; }
+.b3d-battle-names { font-size: 13px; margin: 4px 0 8px; }
+.b3d-battle-card button { width: 100%; padding: 4px; }
+
+.b3d-radio-feed {
+  position: absolute; bottom: 14px; left: 12px; z-index: 6;
+  display: flex; flex-direction: column; gap: 4px; max-width: 440px; pointer-events: none;
+}
+
+.b3d-strategy {
+  position: absolute; bottom: 14px; right: 12px; z-index: 6;
+  width: 300px; background: rgba(10,14,19,.92); border: 1px solid var(--line);
+  border-radius: 8px; padding: 12px; backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.b3d-strategy.collapsed .b3d-strat-stats, .b3d-strategy.collapsed .b3d-strat-controls { display: none; }
+.b3d-strat-head { display: flex; align-items: center; gap: 8px; }
+.b3d-strat-name { font-weight: 700; }
+.b3d-strat-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.b3d-stat-line { display: flex; justify-content: space-between; font-size: 12px; }
+.b3d-stat-line span:first-child { color: var(--text-2); }
+.b3d-stat-line .tyre-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.b3d-strat-controls { display: flex; flex-direction: column; gap: 6px; }
+.b3d-ctl-label { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+
+.b3d-timing {
+  position: absolute; top: 90px; left: 12px; z-index: 5; width: 230px;
+  background: rgba(10,14,19,.85); border-radius: 6px; overflow: hidden; backdrop-filter: blur(4px);
+}
+.b3d-timing .tower-row { font-size: 11px; padding: 3px 8px; grid-template-columns: 22px 1fr 52px; }
+
+.b3d-strat-note { font-size: 11px; color: var(--text-2); }
+
+@media (max-width: 1100px) {
+  .b3d-strategy { width: 250px; }
+  .b3d-timing { display: none; }
+}
+
 /* ---------- News ---------- */
 .news-item { border-bottom: 1px solid var(--line-soft); padding: 12px 0; }
 .news-item:last-child { border-bottom: none; }

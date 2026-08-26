@@ -6,6 +6,7 @@ import { renderNewChampionship } from './new-championship'
 import { renderHQ, renderStandings, renderDrivers, renderStaff } from './hq'
 import { renderWeekend } from './weekend'
 import { renderBroadcast } from './broadcast'
+import { renderBroadcast3D } from './three/broadcast3d'
 import { renderResults } from './results'
 import { renderDevTools } from './devtools'
 import { startDevelopment, startFacilityUpgrade } from '../championship/engine'
@@ -62,7 +63,8 @@ function route() {
   switch (hash) {
     case '#/hq': return renderHQ(root)
     case '#/weekend': return renderWeekend(root)
-    case '#/broadcast': return renderBroadcast(root)
+    case '#/broadcast': return renderBroadcast3D(root)
+    case '#/broadcast2d': return renderBroadcast(root)
     case '#/results': return renderResults(root)
     case '#/standings': return renderStandings(root)
     case '#/drivers': return renderDrivers(root)
