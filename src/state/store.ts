@@ -68,7 +68,8 @@ class AppStore {
     const res = loadFromStorage()
     if (res.ok && res.champ) {
       this.setChampionship(res.champ)
-      toast('Save loaded.')
+      if (res.migrated) toast('Save loaded — schema updated.')
+      else toast('Save loaded.')
       return true
     }
     toast(res.error ?? 'Failed to load save.', true)

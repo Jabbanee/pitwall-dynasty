@@ -1,5 +1,6 @@
 import type { Driver, Team } from '../core/types'
 import { clamp } from '../sim/live-race'
+import { createRng } from '../core/rng'
 
 /**
  * Driver Agency — drivers are autonomous characters with championship-scoped
@@ -182,6 +183,89 @@ export class DriverAgencyStore {
     const s = this.states.get(driverId)
     return relationshipLabel(s?.teammateRelationship ?? 50)
   }
+
+  /**
+   * Add a new promise made by the team to the driver (or vice-versa).
+   * A broken promise causes severe morale/trust damage and a public
+   * memory event.
+   */
+  addPromise(driverId: string, description: string) {
+    const s = this.ensure(driverId, this.dummyDriver(driverId))
+    s.promises.push({ description, broken: false, round: this.currentRound })
+  }
+
+  /**
+   * Mark a promise as broken. Applies trust + morale penalty via memory
+   * events. Idempotent — broken twice has no extra effect.
+   */
+  breakPromise(driverId: string, descriptionMatch: string) {
+    const s = this.states.get(driverId)
+    if (!s) return false
+    const p = s.promises.find((x) => !x.broken && x.description.includes(descriptionMatch))
+    if (!p) return false
+    p.broken = true
+    this.addMemory(driverId, this.dummyDriver(driverId), 'PROMISE_BROKEN', 1)
+    return true
+  }
+
+  /** Issue a positive memory event (e.g. PROMISE_KEPT, PUBLIC_PRAISE). */
+  recordPositive(driverId: string, type: MemoryEventType) {
+    this.addMemory(driverId, this.dummyDriver(driverId), type, 1)
+  }
+
+  /** Record a sponsor/team-order decision that went against this driver. */
+  recordNegative(driverId: string, type: MemoryEventType) {
+    this.addMemory(driverId, this.dummyDriver(driverId), type, 1)
+  }
+
+  /** Driver demands that have been raised but not yet resolved. */
+  demands(driverId: string): DriverDemand[] {
+    return this.ensure(driverId, this.dummyDriver(driverId)).demands
+  }
+
+  private dummyDriver(id: string): Driver {
+    return {
+      id,
+      firstName: id, lastName: id, nationality: '?', age: 25,
+      visible: { pace: 60, qualifying: 60, racecraft: 60, overtaking: 60, defending: 60, consistency: 60, wetSkill: 60, tyreManagement: 60, feedback: 60 },
+      hidden: { potential: 60, pressureResistance: 60, aggression: 50, adaptability: 60, loyalty: 50, ego: 50, confidenceSensitivity: 50, developmentRate: 50, declineRate: 30 },
+      dynamic: { morale: 60, confidence: 60, form: 0, fatigue: 0, seasonsWithTeam: 1 },
+      salaryDemandBase: 0,
+      history: [],
+    }
+  }
+}
+
+/**
+ * Build a fresh set of driver demands for a new championship based on the
+ * driver's personality + market standing. Stable for a given driverId+seed.
+ */
+export function generateDriverDemands(driver: Driver, seed: number): DriverDemand[] {
+  const rng = createRng((hashStr(driver.id + '|' + seed) >>> 0))
+  const demands: DriverDemand[] = []
+  // Ego drivers want number-1 status
+  if (driver.hidden.ego > 70 && rng.chance(0.55)) {
+    demands.push({ kind: 'number1Status', description: 'Number 1 driver status at the team', satisfied: false, promised: rng.chance(0.4) })
+  }
+  // Highly loyal + low ego drivers are happy with equal status
+  if (driver.hidden.loyalty > 60 && driver.hidden.ego < 60 && rng.chance(0.4)) {
+    demands.push({ kind: 'equalStatus', description: 'Equal status with teammate — no number 1', satisfied: false, promised: rng.chance(0.3) })
+  }
+  // Ambitious drivers want a competitive car / championship target
+  if (driver.hidden.potential > 75 && rng.chance(0.6)) {
+    demands.push({ kind: 'championshipTarget', description: 'Championship-contending car next season', satisfied: false, promised: rng.chance(0.3) })
+  }
+  // High salary expectations
+  if (driver.visible.pace > 80 && rng.chance(0.5)) {
+    demands.push({ kind: 'salary', description: 'Salary top-up to match market value', satisfied: false, promised: false })
+  }
+  return demands
+}
+
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return Math.abs(h)
 }
 
 // ---------------------------------------------------------------------------

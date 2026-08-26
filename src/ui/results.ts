@@ -91,6 +91,9 @@ export function renderResults(root: HTMLElement) {
     el('div', { style: 'display:flex;justify-content:center;padding:10px 0;gap:12px' },
       el('button', {
         class: 'primary',
+        onclick: () => { location.hash = '#/paddock' },
+      }, 'Open Paddock Post →'),
+      el('button', {
         onclick: () => {
           const outcome = store.advanceRound()
           if (outcome === 'seasonComplete') {

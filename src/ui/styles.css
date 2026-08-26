@@ -395,6 +395,92 @@ button.warn-action { border-color: rgba(242, 199, 68, 0.6); }
 .news-item p { font-size: 13px; color: var(--text-1); line-height: 1.45; }
 .news-item .news-meta { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
 
+/* ---------- Paddock Post ---------- */
+.paddock-page { background: linear-gradient(180deg, var(--bg-1), var(--bg-0)); }
+.paddock-mast {
+  border-top: 3px solid var(--accent);
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg-2);
+  padding: 18px 22px; border-radius: 4px;
+  border-left: 4px solid var(--accent);
+}
+.paddock-mast-row { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.paddock-mast-title { font-family: 'Georgia', 'Times New Roman', serif; font-size: 34px; font-weight: 900; letter-spacing: 0.04em; }
+.paddock-mast-meta { display: flex; gap: 14px; color: var(--text-1); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.paddock-mast-sub { color: var(--text-2); font-size: 12px; font-style: italic; }
+.paddock-lead {
+  background: var(--bg-1); padding: 22px 26px; border: 1px solid var(--line); border-radius: 6px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.paddock-kicker { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+.paddock-lead h1 { font-family: 'Georgia', 'Times New Roman', serif; font-size: 28px; line-height: 1.2; }
+.paddock-lead-body { font-size: 15px; line-height: 1.55; color: var(--text-0); }
+.paddock-byline { font-size: 12px; color: var(--text-2); font-style: italic; }
+.paddock-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+.paddock-tile {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.paddock-tile-label { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em; }
+.paddock-tile-value { font-size: 16px; font-weight: 700; color: var(--text-0); font-family: var(--mono); }
+.paddock-tile-sub { font-size: 11px; color: var(--text-1); }
+.paddock-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+.paddock-card {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.paddock-card-lead { border-color: var(--accent); }
+.paddock-card-analysis { border-color: var(--accent-2); }
+.paddock-card-rumour { border-color: var(--warn); }
+.paddock-card-kicker { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+.paddock-card h3 { font-size: 16px; line-height: 1.3; }
+.paddock-card p { font-size: 13px; line-height: 1.5; color: var(--text-1); }
+.paddock-section { font-family: 'Georgia', 'Times New Roman', serif; font-size: 22px; padding-top: 6px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.paddock-quotes { display: flex; flex-direction: column; gap: 8px; }
+.paddock-quote {
+  background: var(--bg-2); border-left: 3px solid var(--accent-2);
+  padding: 10px 14px; margin: 0; border-radius: 0 4px 4px 0;
+  font-style: italic; color: var(--text-0);
+}
+.paddock-quote cite { display: block; margin-top: 6px; font-size: 12px; color: var(--text-2); font-style: normal; }
+.paddock-standings { width: 100%; border-collapse: collapse; background: var(--bg-1); border-radius: 4px; overflow: hidden; }
+.paddock-standings th, .paddock-standings td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+.paddock-standings th { background: var(--bg-2); color: var(--text-2); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.paddock-standings td.num, .paddock-standings th.num { text-align: right; font-family: var(--mono); }
+.paddock-teamtag { color: var(--text-2); font-size: 11px; margin-left: 6px; }
+.paddock-footer {
+  padding: 12px 16px; background: var(--bg-2); border-left: 3px solid var(--warn);
+  border-radius: 0 4px 4px 0; color: var(--text-1); font-size: 13px;
+}
+
+.paddock-interview {
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 6px;
+  padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;
+  border-left: 4px solid var(--warn);
+}
+.paddock-interview-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.paddock-interview-kicker { font-size: 10px; color: var(--warn); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+.paddock-interview-name { font-size: 16px; font-weight: 700; }
+.paddock-interview-q { font-size: 15px; line-height: 1.5; color: var(--text-0); font-style: italic; }
+.paddock-interview-options { display: flex; flex-direction: column; gap: 6px; }
+.paddock-interview-option {
+  text-align: left; padding: 10px 14px; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px;
+  cursor: pointer; font-size: 13px; line-height: 1.4;
+}
+.paddock-interview-option:hover { border-color: var(--accent-2); background: var(--bg-3); }
+.paddock-interview-option.chosen { border-color: var(--accent); background: rgba(232, 68, 58, 0.08); }
+.paddock-interview-letter { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--accent); min-width: 22px; }
+.paddock-interview.answered .paddock-interview-option:not(.chosen) { opacity: 0.5; }
+
 /* ---------- Modal ---------- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(4, 6, 9, 0.72); z-index: 50;

@@ -122,12 +122,27 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     return { primary: '#888888', secondary: '#ffffff' }
   }
 
+  /**
+   * Convert an era year to a 0..1 era factor for the 3D car geometry.
+   * 1980 -> 0, 1990 -> 0.15, 2000 -> 0.35, 2010 -> 0.55, 2022+ -> 0.9.
+   */
+  function eraFactorFor(year: number): number {
+    if (year <= 1980) return 0
+    if (year <= 1990) return 0.15
+    if (year <= 2000) return 0.35
+    if (year <= 2010) return 0.55
+    if (year <= 2014) return 0.7
+    if (year <= 2021) return 0.82
+    return 0.95
+  }
+
   function ensureCars(snapshot: RaceSnapshot) {
     if (!track) return
+    const era = eraFactorFor(champ?.config?.eraYear ?? 2024)
     for (const car of snapshot.cars) {
       if (!car3ds.has(car.driverId)) {
         const colors = teamColorsOf(car.teamId)
-        const visual = createCar({ colors, carNumber: car.carNumber, eraFactor: 0.9 })
+        const visual = createCar({ colors, carNumber: car.carNumber, eraFactor: era })
         scene.add(visual.group)
         car3ds.set(car.driverId, { driverId: car.driverId, visual, lastLap: car.lap })
       }

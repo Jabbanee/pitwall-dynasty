@@ -8,6 +8,7 @@ import { renderWeekend } from './weekend'
 import { renderBroadcast } from './broadcast'
 import { renderBroadcast3D } from './three/broadcast3d'
 import { renderResults } from './results'
+import { renderPaddockPost } from './paddock-post'
 import { renderDevTools } from './devtools'
 import { startDevelopment, startFacilityUpgrade } from '../championship/engine'
 import { SPONSORS } from '../core/content'
@@ -67,6 +68,7 @@ function route() {
     case '#/broadcast2d': return renderBroadcast(root)
     case '#/results': return renderResults(root)
     case '#/standings': return renderStandings(root)
+    case '#/paddock': return renderPaddockPost(root)
     case '#/drivers': return renderDrivers(root)
     case '#/staff': return renderStaff(root)
     case '#/development': return renderSimpleManagement(root, 'development')
