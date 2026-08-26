@@ -1,0 +1,110 @@
+- generic [ref=e2]:
+  - generic [ref=e334]:
+    - generic [ref=e335]: PITWALL DYNASTY
+    - navigation [ref=e336]:
+      - link "Team HQ" [ref=e337] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=e338] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=e339] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=e340] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=e341] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=e342] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=e343] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=e344] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=e345] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=e346] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=e347] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=e348] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=e349]:
+      - generic [ref=e350]: S1 · R1/5
+      - generic [ref=e351]: $164.5M
+      - button "Save" [ref=e352] [cursor=pointer]
+      - button "Dev" [ref=e353] [cursor=pointer]
+  - generic [ref=e354]:
+    - generic [ref=e355]:
+      - generic [ref=e357]:
+        - generic [ref=e359]:
+          - button "TV Broadcast" [ref=e360] [cursor=pointer]
+          - button "Team" [ref=e361] [cursor=pointer]
+          - button "Driver" [ref=e362] [cursor=pointer]
+          - button "Track Map" [ref=e363] [cursor=pointer]
+          - button "Battle" [ref=e364] [cursor=pointer]
+        - generic [ref=e365]: "📺 finish: Chequered flag — winner: Vasquez"
+      - generic [ref=e366]:
+        - generic [ref=e527]:
+          - generic [ref=e528]: P
+          - generic [ref=e529]: DRIVER
+          - generic [ref=e530]: GAP
+        - generic [ref=e531]:
+          - generic [ref=e532]: "1"
+          - generic [ref=e535]: Vasquez 🏁
+          - generic [ref=e536]: Leader
+          - generic [ref=e537]: L24·0p
+        - generic [ref=e538]:
+          - generic [ref=e539]: "2"
+          - generic [ref=e542]: Morimoto 🏁
+          - generic [ref=e543]: "-0.0s"
+          - generic [ref=e544]: L24·0p
+        - generic [ref=e545]:
+          - generic [ref=e546]: "3"
+          - generic [ref=e549]: Novak
+          - generic [ref=e550]: "-87.9s"
+          - generic [ref=e551]: L24·0p
+        - generic [ref=e552]:
+          - generic [ref=e553]: "4"
+          - generic [ref=e556]: Cortez
+          - generic [ref=e557]: "-87.9s"
+          - generic [ref=e558]: L24·0p
+        - generic [ref=e559]:
+          - generic [ref=e560]: "5"
+          - generic [ref=e563]: Mendes
+          - generic [ref=e564]: "-87.9s"
+          - generic [ref=e565]: L24·0p
+        - generic [ref=e566]:
+          - generic [ref=e567]: "6"
+          - generic [ref=e570]: Demir
+          - generic [ref=e571]: "-87.9s"
+          - generic [ref=e572]: L24·0p
+        - generic [ref=e573]:
+          - generic [ref=e574]: "7"
+          - generic [ref=e577]: Grant
+          - generic [ref=e578]: "-87.9s"
+          - generic [ref=e579]: L24·0p
+        - generic [ref=e580]:
+          - generic [ref=e581]: "8"
+          - generic [ref=e584]: Horvat
+          - generic [ref=e585]: "-87.9s"
+          - generic [ref=e586]: L24·0p
+        - generic [ref=e587]:
+          - generic [ref=e588]: "9"
+          - generic [ref=e591]: Patel
+          - generic [ref=e592]: "-87.9s"
+          - generic [ref=e593]: L24·0p
+        - generic [ref=e594]:
+          - generic [ref=e595]: "10"
+          - generic [ref=e598]: Okafor ⛔
+          - generic [ref=e599]: "-0.0s"
+          - generic [ref=e600]: L11·0p
+    - generic [ref=e441]:
+      - button [ref=e442] [cursor=pointer]
+      - generic [ref=e443]:
+        - button "1x" [ref=e444] [cursor=pointer]
+        - button "2x" [ref=e445] [cursor=pointer]
+        - button "4x" [ref=e446] [cursor=pointer]
+        - button "8x" [ref=e447] [cursor=pointer]
+      - button "⏪ 30s" [ref=e448] [cursor=pointer]
+      - button "⏮ Start" [ref=e449] [cursor=pointer]
+      - generic [ref=e450]: 36:53
+      - generic [ref=e451]: SIM sim-1.0.0 · SEED 1021735665
+      - button "Results" [ref=e452] [cursor=pointer]

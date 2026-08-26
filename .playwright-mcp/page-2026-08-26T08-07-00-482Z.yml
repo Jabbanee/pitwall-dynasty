@@ -1,0 +1,255 @@
+- generic [ref=f10e2]:
+  - generic [ref=f10e867]:
+    - generic [ref=f10e868]: PITWALL DYNASTY
+    - navigation [ref=f10e869]:
+      - link "Team HQ" [ref=f10e870] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=f10e871] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=f10e872] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=f10e873] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=f10e874] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=f10e875] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=f10e876] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=f10e877] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=f10e878] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=f10e879] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=f10e880] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=f10e881] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=f10e882]:
+      - generic [ref=f10e883]: S1 · R2/5
+      - generic [ref=f10e884]: $165.3M
+      - button "Save" [ref=f10e885] [cursor=pointer]
+      - button "Dev" [ref=f10e886] [cursor=pointer]
+  - generic [ref=f10e889]:
+    - heading "Season 1 Standings" [level=2] [ref=f10e890]
+    - generic [ref=f10e891]:
+      - generic [ref=f10e892]:
+        - heading "Drivers Championship" [level=3] [ref=f10e894]
+        - table [ref=f10e895]:
+          - rowgroup [ref=f10e896]:
+            - row [ref=f10e897]:
+              - columnheader "#" [ref=f10e898]
+              - columnheader "Driver" [ref=f10e899]
+              - columnheader "Team" [ref=f10e900]
+              - columnheader "Pts" [ref=f10e901]
+              - columnheader "Wins" [ref=f10e902]
+          - rowgroup [ref=f10e903]:
+            - row [ref=f10e904]:
+              - cell "1" [ref=f10e905]
+              - cell "Mateo Vasquez" [ref=f10e906]
+              - cell "YOU" [ref=f10e907]
+              - cell "26" [ref=f10e909]
+              - cell "1" [ref=f10e910]
+            - row [ref=f10e911]:
+              - cell "2" [ref=f10e912]
+              - cell "Daniel Okafor" [ref=f10e913]
+              - cell "BOR" [ref=f10e914]
+              - cell "18" [ref=f10e916]
+              - cell "0" [ref=f10e917]
+            - row [ref=f10e918]:
+              - cell "3" [ref=f10e919]
+              - cell "Lucas Mendes" [ref=f10e920]
+              - cell "MER" [ref=f10e921]
+              - cell "15" [ref=f10e923]
+              - cell "0" [ref=f10e924]
+            - row [ref=f10e925]:
+              - cell "4" [ref=f10e926]
+              - cell "Kenji Morimoto" [ref=f10e927]
+              - cell "AQU" [ref=f10e928]
+              - cell "12" [ref=f10e930]
+              - cell "0" [ref=f10e931]
+            - row [ref=f10e932]:
+              - cell "5" [ref=f10e933]
+              - cell "Emil Novak" [ref=f10e934]
+              - cell "KES" [ref=f10e935]
+              - cell "10" [ref=f10e937]
+              - cell "0" [ref=f10e938]
+            - row [ref=f10e939]:
+              - cell "6" [ref=f10e940]
+              - cell "Rafael Cortez" [ref=f10e941]
+              - cell "POL" [ref=f10e942]
+              - cell "8" [ref=f10e944]
+              - cell "0" [ref=f10e945]
+            - row [ref=f10e946]:
+              - cell "7" [ref=f10e947]
+              - cell "Oliver Grant" [ref=f10e948]
+              - cell "VAN" [ref=f10e949]
+              - cell "6" [ref=f10e951]
+              - cell "0" [ref=f10e952]
+            - row [ref=f10e953]:
+              - cell "8" [ref=f10e954]
+              - cell "Nikola Horvat" [ref=f10e955]
+              - cell "HOR" [ref=f10e956]
+              - cell "4" [ref=f10e958]
+              - cell "0" [ref=f10e959]
+            - row [ref=f10e960]:
+              - cell "9" [ref=f10e961]
+              - cell "Yusuf Demir" [ref=f10e962]
+              - cell "SBX" [ref=f10e963]
+              - cell "2" [ref=f10e965]
+              - cell "0" [ref=f10e966]
+            - row [ref=f10e967]:
+              - cell "10" [ref=f10e968]
+              - cell "Sanjay Patel" [ref=f10e969]
+              - cell "COB" [ref=f10e970]
+              - cell "1" [ref=f10e972]
+              - cell "0" [ref=f10e973]
+            - row [ref=f10e974]:
+              - cell "11" [ref=f10e975]
+              - cell "Jonas Lindqvist" [ref=f10e976]
+              - cell "YOU" [ref=f10e977]
+              - cell "0" [ref=f10e979]
+              - cell "0" [ref=f10e980]
+            - row [ref=f10e981]:
+              - cell "12" [ref=f10e982]
+              - cell "Alessandro Ferraro" [ref=f10e983]
+              - cell "AQU" [ref=f10e984]
+              - cell "0" [ref=f10e986]
+              - cell "0" [ref=f10e987]
+            - row [ref=f10e988]:
+              - cell "13" [ref=f10e989]
+              - cell "Ivan Petrov" [ref=f10e990]
+              - cell "BOR" [ref=f10e991]
+              - cell "0" [ref=f10e993]
+              - cell "0" [ref=f10e994]
+            - row [ref=f10e995]:
+              - cell "14" [ref=f10e996]
+              - cell "Tom Whitfield" [ref=f10e997]
+              - cell "MER" [ref=f10e998]
+              - cell "0" [ref=f10e1000]
+              - cell "0" [ref=f10e1001]
+            - row [ref=f10e1002]:
+              - cell "15" [ref=f10e1003]
+              - cell "Henrik Sorensen" [ref=f10e1004]
+              - cell "KES" [ref=f10e1005]
+              - cell "0" [ref=f10e1007]
+              - cell "0" [ref=f10e1008]
+            - row [ref=f10e1009]:
+              - cell "16" [ref=f10e1010]
+              - cell "Pierre Laurent" [ref=f10e1011]
+              - cell "SBX" [ref=f10e1012]
+              - cell "0" [ref=f10e1014]
+              - cell "0" [ref=f10e1015]
+            - row [ref=f10e1016]:
+              - cell "17" [ref=f10e1017]
+              - cell "Felix Braun" [ref=f10e1018]
+              - cell "VAN" [ref=f10e1019]
+              - cell "0" [ref=f10e1021]
+              - cell "0" [ref=f10e1022]
+            - row [ref=f10e1023]:
+              - cell "18" [ref=f10e1024]
+              - cell "Diego Salazar" [ref=f10e1025]
+              - cell "COB" [ref=f10e1026]
+              - cell "0" [ref=f10e1028]
+              - cell "0" [ref=f10e1029]
+            - row [ref=f10e1030]:
+              - cell "19" [ref=f10e1031]
+              - cell "Antti Korhonen" [ref=f10e1032]
+              - cell "POL" [ref=f10e1033]
+              - cell "0" [ref=f10e1035]
+              - cell "0" [ref=f10e1036]
+            - row [ref=f10e1037]:
+              - cell "20" [ref=f10e1038]
+              - cell "Marco Silva" [ref=f10e1039]
+              - cell "HOR" [ref=f10e1040]
+              - cell "0" [ref=f10e1042]
+              - cell "0" [ref=f10e1043]
+            - row [ref=f10e1044]:
+              - cell "21" [ref=f10e1045]
+              - cell "Leo Marchetti" [ref=f10e1046]
+              - cell "—" [ref=f10e1047]
+              - cell "0" [ref=f10e1048]
+              - cell "0" [ref=f10e1049]
+            - row [ref=f10e1050]:
+              - cell "22" [ref=f10e1051]
+              - cell "Jamal Haddad" [ref=f10e1052]
+              - cell "—" [ref=f10e1053]
+              - cell "0" [ref=f10e1054]
+              - cell "0" [ref=f10e1055]
+            - row [ref=f10e1056]:
+              - cell "23" [ref=f10e1057]
+              - cell "Ethan Brooks" [ref=f10e1058]
+              - cell "—" [ref=f10e1059]
+              - cell "0" [ref=f10e1060]
+              - cell "0" [ref=f10e1061]
+            - row [ref=f10e1062]:
+              - cell "24" [ref=f10e1063]
+              - cell "Andrei Popescu" [ref=f10e1064]
+              - cell "—" [ref=f10e1065]
+              - cell "0" [ref=f10e1066]
+              - cell "0" [ref=f10e1067]
+      - generic [ref=f10e1068]:
+        - generic [ref=f10e1069]:
+          - heading "Constructors Championship" [level=3] [ref=f10e1071]
+          - table [ref=f10e1072]:
+            - rowgroup [ref=f10e1073]:
+              - row [ref=f10e1074]:
+                - columnheader "#" [ref=f10e1075]
+                - columnheader "Team" [ref=f10e1076]
+                - columnheader "Pts" [ref=f10e1077]
+                - columnheader "Wins" [ref=f10e1078]
+            - rowgroup [ref=f10e1079]:
+              - row [ref=f10e1080]:
+                - cell "1" [ref=f10e1081]
+                - cell "Your Racing Team" [ref=f10e1082]
+                - cell "26" [ref=f10e1084]
+                - cell "1" [ref=f10e1085]
+              - row [ref=f10e1086]:
+                - cell "2" [ref=f10e1087]
+                - cell "Boreal GP" [ref=f10e1088]
+                - cell "18" [ref=f10e1090]
+                - cell "0" [ref=f10e1091]
+              - row [ref=f10e1092]:
+                - cell "3" [ref=f10e1093]
+                - cell "Meridian Motorsport" [ref=f10e1094]
+                - cell "15" [ref=f10e1096]
+                - cell "0" [ref=f10e1097]
+              - row [ref=f10e1098]:
+                - cell "4" [ref=f10e1099]
+                - cell "Aquila Corse" [ref=f10e1100]
+                - cell "12" [ref=f10e1102]
+                - cell "0" [ref=f10e1103]
+              - row [ref=f10e1104]:
+                - cell "5" [ref=f10e1105]
+                - cell "Kestrel Racing" [ref=f10e1106]
+                - cell "10" [ref=f10e1108]
+                - cell "0" [ref=f10e1109]
+              - row [ref=f10e1110]:
+                - cell "6" [ref=f10e1111]
+                - cell "Polaris Works" [ref=f10e1112]
+                - cell "8" [ref=f10e1114]
+                - cell "0" [ref=f10e1115]
+              - row [ref=f10e1116]:
+                - cell "7" [ref=f10e1117]
+                - cell "Vanguard Apex" [ref=f10e1118]
+                - cell "6" [ref=f10e1120]
+                - cell "0" [ref=f10e1121]
+              - row [ref=f10e1122]:
+                - cell "8" [ref=f10e1123]
+                - cell "Horizon GP" [ref=f10e1124]
+                - cell "4" [ref=f10e1126]
+                - cell "0" [ref=f10e1127]
+              - row [ref=f10e1128]:
+                - cell "9" [ref=f10e1129]
+                - cell "SableFox Racing" [ref=f10e1130]
+                - cell "2" [ref=f10e1132]
+                - cell "0" [ref=f10e1133]
+              - row [ref=f10e1134]:
+                - cell "10" [ref=f10e1135]
+                - cell "Cobalt Line" [ref=f10e1136]
+                - cell "1" [ref=f10e1138]
+                - cell "0" [ref=f10e1139]
+        - generic [ref=f10e1140]:
+          - heading "Past Champions" [level=3] [ref=f10e1142]
+          - generic [ref=f10e1143]: First season in progress.

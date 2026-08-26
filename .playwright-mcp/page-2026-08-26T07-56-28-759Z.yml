@@ -1,0 +1,162 @@
+- generic [ref=f10e2]:
+  - generic [ref=f10e156]:
+    - generic [ref=f10e157]: PITWALL DYNASTY
+    - navigation [ref=f10e158]:
+      - link "Team HQ" [ref=f10e159] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=f10e160] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=f10e161] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=f10e162] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=f10e163] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=f10e164] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=f10e165] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=f10e166] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=f10e167] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=f10e168] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=f10e169] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=f10e170] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=f10e171]:
+      - generic [ref=f10e172]: S1 · R1/5
+      - generic [ref=f10e173]: $180.0M
+      - button "Save" [ref=f10e174] [cursor=pointer]
+      - button "Dev" [ref=f10e175] [cursor=pointer]
+  - generic [ref=f10e178]:
+    - generic [ref=f10e179]:
+      - generic [ref=f10e180]:
+        - heading "Round 1 / 5 — Harborfield Street Circuit" [level=2] [ref=f10e181]
+        - generic [ref=f10e182]: "Australia · 3.8km · 28 laps · Overtaking: Very Hard · Tyre stress: 60"
+      - generic [ref=f10e183]:
+        - generic [ref=f10e184]: Locks in
+        - generic [ref=f10e185]: "--:--"
+    - generic [ref=f10e186]:
+      - generic [ref=f10e188]:
+        - generic [ref=f10e189]:
+          - heading "Car Performance" [level=3] [ref=f10e190]
+          - generic [ref=f10e191]: vs circuit needs
+        - generic [ref=f10e192]:
+          - generic [ref=f10e194]:
+            - generic [ref=f10e195]: Low-speed aero
+            - generic [ref=f10e196]: 68 (track 70)
+          - generic [ref=f10e200]:
+            - generic [ref=f10e201]: Medium-speed aero
+            - generic [ref=f10e202]: 68 (track 50)
+          - generic [ref=f10e206]:
+            - generic [ref=f10e207]: High-speed aero
+            - generic [ref=f10e208]: 67 (track 25)
+          - generic [ref=f10e212]:
+            - generic [ref=f10e213]: Straight line
+            - generic [ref=f10e214]: 62 (track 40)
+          - generic [ref=f10e218]:
+            - generic [ref=f10e219]: Braking
+            - generic [ref=f10e220]: 62 (track 75)
+          - generic [ref=f10e224]:
+            - generic [ref=f10e225]: Traction
+            - generic [ref=f10e226]: 62 (track 50)
+          - generic [ref=f10e230]:
+            - generic [ref=f10e231]: Reliability
+            - generic [ref=f10e232]: 68 (track 50)
+          - generic [ref=f10e236]:
+            - generic [ref=f10e237]: Cooling
+            - generic [ref=f10e238]: 62 (track 50)
+          - generic [ref=f10e242]:
+            - generic [ref=f10e243]: Tyre wear (lower better)
+            - generic [ref=f10e244]: 62 (track 40)
+      - generic [ref=f10e247]:
+        - generic [ref=f10e248]:
+          - heading "Weather Forecast" [level=3] [ref=f10e250]
+          - generic [ref=f10e251]:
+            - generic [ref=f10e252]:
+              - generic [ref=f10e253]: Expected
+              - generic [ref=f10e254]: dry
+            - generic [ref=f10e255]:
+              - generic [ref=f10e256]: Rain risk
+              - generic [ref=f10e257]: 12%
+            - generic [ref=f10e258]:
+              - generic [ref=f10e259]: Forecast confidence
+              - generic [ref=f10e260]: 70%
+            - paragraph [ref=f10e261]: Rain can arrive mid-race. Make sure your wet rules are enabled below.
+        - generic [ref=f10e262]:
+          - heading "Car Setup" [level=3] [ref=f10e264]
+          - generic [ref=f10e265]:
+            - generic [ref=f10e266]:
+              - generic [ref=f10e267]: Downforce ←→ Top speed
+              - slider [ref=f10e268]: "0"
+              - generic [ref=f10e269]: "0"
+            - generic [ref=f10e270]:
+              - generic [ref=f10e271]: Mechanical grip ←→ Straights
+              - slider [ref=f10e272]: "0"
+              - generic [ref=f10e273]: "0"
+        - generic [ref=f10e274]:
+          - heading "Strategy Playbook" [level=3] [ref=f10e276]
+          - generic [ref=f10e277]:
+            - generic [ref=f10e278]:
+              - generic [ref=f10e279]: Starting tyre
+              - generic [ref=f10e280]:
+                - button "● Soft" [ref=f10e281] [cursor=pointer]
+                - button "● Medium" [ref=f10e282] [cursor=pointer]
+                - button "● Hard" [ref=f10e283] [cursor=pointer]
+                - button "● Intermediate" [ref=f10e284] [cursor=pointer]
+                - button "● Full Wet" [ref=f10e285] [cursor=pointer]
+            - generic [ref=f10e286]:
+              - generic [ref=f10e287]: Planned pit stops
+              - generic [ref=f10e288]:
+                - generic [ref=f10e289]:
+                  - generic [ref=f10e290]: "Stop 1: lap"
+                  - spinbutton [ref=f10e291]: "12"
+                  - combobox [ref=f10e292]:
+                    - option "Soft"
+                    - option "Medium"
+                    - option "Hard" [selected]
+                    - option "Intermediate"
+                    - option "Full Wet"
+                  - button "✕" [ref=f10e293] [cursor=pointer]
+                - button "+ Add pit stop" [ref=f10e294] [cursor=pointer]
+            - generic [ref=f10e295]:
+              - generic [ref=f10e296]: Pace mode
+              - generic [ref=f10e297]:
+                - button "conserve" [ref=f10e298] [cursor=pointer]
+                - button "normal" [ref=f10e299] [cursor=pointer]
+                - button "push" [ref=f10e300] [cursor=pointer]
+                - button "attack" [ref=f10e301] [cursor=pointer]
+            - generic [ref=f10e302]:
+              - generic [ref=f10e303]: Tyre usage
+              - generic [ref=f10e304]:
+                - button "conserve" [ref=f10e305] [cursor=pointer]
+                - button "standard" [ref=f10e306] [cursor=pointer]
+                - button "aggressive" [ref=f10e307] [cursor=pointer]
+            - generic [ref=f10e308]:
+              - generic [ref=f10e309]: Energy
+              - generic [ref=f10e310]:
+                - button "harvest" [ref=f10e311] [cursor=pointer]
+                - button "balanced" [ref=f10e312] [cursor=pointer]
+                - button "deploy" [ref=f10e313] [cursor=pointer]
+            - generic [ref=f10e314]:
+              - generic [ref=f10e315]: Conditional rules
+              - generic [ref=f10e316]:
+                - generic [ref=f10e317]:
+                  - generic [ref=f10e318]:
+                    - generic [ref=f10e319]: Rain switch
+                    - generic [ref=f10e320]: Switch to rain tyres when track wetness crosses threshold
+                  - generic [ref=f10e321] [cursor=pointer]: "ON"
+                - generic [ref=f10e322]:
+                  - generic [ref=f10e323]:
+                    - generic [ref=f10e324]: Safety Car stop
+                    - generic [ref=f10e325]: Cheap stop under Safety Car when tyres are worn enough
+                  - generic [ref=f10e326] [cursor=pointer]: "ON"
+                - generic [ref=f10e327]:
+                  - generic [ref=f10e328]:
+                    - generic [ref=f10e329]: Late-race attack
+                    - generic [ref=f10e330]: Fit fresh Softs for a final charge in the last laps
+                  - generic [ref=f10e331] [cursor=pointer]: "OFF"
+    - button "LOCK RACE PACKAGE & SIMULATE" [ref=f10e333] [cursor=pointer]

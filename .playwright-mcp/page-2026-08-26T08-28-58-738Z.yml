@@ -1,0 +1,110 @@
+- generic [ref=f22e2]:
+  - generic [ref=f22e334]:
+    - generic [ref=f22e335]: PITWALL DYNASTY
+    - navigation [ref=f22e336]:
+      - link "Team HQ" [ref=f22e337] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=f22e338] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=f22e339] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=f22e340] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=f22e341] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=f22e342] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=f22e343] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=f22e344] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=f22e345] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=f22e346] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=f22e347] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=f22e348] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=f22e349]:
+      - generic [ref=f22e350]: S1 · R1/5
+      - generic [ref=f22e351]: $165.4M
+      - button "Save" [ref=f22e352] [cursor=pointer]
+      - button "Dev" [ref=f22e353] [cursor=pointer]
+  - generic [ref=f22e354]:
+    - generic [ref=f22e355]:
+      - generic [ref=f22e357]:
+        - generic [ref=f22e359]:
+          - button "TV Broadcast" [ref=f22e360] [cursor=pointer]
+          - button "Team" [ref=f22e361] [cursor=pointer]
+          - button "Driver" [ref=f22e362] [cursor=pointer]
+          - button "Track Map" [ref=f22e363] [cursor=pointer]
+          - button "Battle" [ref=f22e364] [cursor=pointer]
+        - generic [ref=f22e365]: 📺 Race leader
+      - generic [ref=f22e366]:
+        - generic [ref=f22e453]:
+          - generic [ref=f22e454]: P
+          - generic [ref=f22e455]: DRIVER
+          - generic [ref=f22e456]: GAP
+        - generic [ref=f22e457]:
+          - generic [ref=f22e458]: "1"
+          - generic [ref=f22e461]: Vasquez
+          - generic [ref=f22e462]: Leader
+          - generic [ref=f22e463]: L2·0p
+        - generic [ref=f22e464]:
+          - generic [ref=f22e465]: "2"
+          - generic [ref=f22e468]: Morimoto
+          - generic [ref=f22e469]: +1.6s
+          - generic [ref=f22e470]: L2·0p
+        - generic [ref=f22e471]:
+          - generic [ref=f22e472]: "3"
+          - generic [ref=f22e475]: Mendes
+          - generic [ref=f22e476]: +4.4s
+          - generic [ref=f22e477]: L2·0p
+        - generic [ref=f22e478]:
+          - generic [ref=f22e479]: "4"
+          - generic [ref=f22e482]: Okafor
+          - generic [ref=f22e483]: +14.6s
+          - generic [ref=f22e484]: L2·0p
+        - generic [ref=f22e485]:
+          - generic [ref=f22e486]: "5"
+          - generic [ref=f22e489]: Cortez
+          - generic [ref=f22e490]: +15.4s
+          - generic [ref=f22e491]: L2·0p
+        - generic [ref=f22e492]:
+          - generic [ref=f22e493]: "6"
+          - generic [ref=f22e496]: Novak
+          - generic [ref=f22e497]: +16.8s
+          - generic [ref=f22e498]: L2·0p
+        - generic [ref=f22e499]:
+          - generic [ref=f22e500]: "7"
+          - generic [ref=f22e503]: Horvat
+          - generic [ref=f22e504]: +17.3s
+          - generic [ref=f22e505]: L2·0p
+        - generic [ref=f22e506]:
+          - generic [ref=f22e507]: "8"
+          - generic [ref=f22e510]: Grant
+          - generic [ref=f22e511]: +17.5s
+          - generic [ref=f22e512]: L2·0p
+        - generic [ref=f22e513]:
+          - generic [ref=f22e514]: "9"
+          - generic [ref=f22e517]: Demir
+          - generic [ref=f22e518]: +17.5s
+          - generic [ref=f22e519]: L2·0p
+        - generic [ref=f22e520]:
+          - generic [ref=f22e521]: "10"
+          - generic [ref=f22e524]: Patel
+          - generic [ref=f22e525]: +19.3s
+          - generic [ref=f22e526]: L2·0p
+    - generic [ref=f22e441]:
+      - button [ref=f22e442] [cursor=pointer]
+      - generic [ref=f22e443]:
+        - button "1x" [ref=f22e444] [cursor=pointer]
+        - button "2x" [ref=f22e445] [cursor=pointer]
+        - button "4x" [ref=f22e446] [cursor=pointer]
+        - button "8x" [ref=f22e447] [cursor=pointer]
+      - button "⏪ 30s" [ref=f22e448] [cursor=pointer]
+      - button "⏮ Start" [ref=f22e449] [cursor=pointer]
+      - generic [ref=f22e450]: 03:36
+      - generic [ref=f22e451]: SIM sim-1.0.0 · SEED 1026101057
+      - button "Results" [ref=f22e452] [cursor=pointer]

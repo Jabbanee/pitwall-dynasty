@@ -1,0 +1,119 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - generic [ref=f3e3]:
+      - generic [ref=f3e4]: PITWALL DYNASTY
+      - navigation [ref=f3e5]:
+        - link "Team HQ" [ref=f3e6] [cursor=pointer]:
+          - /url: "#/hq"
+        - link "Race Weekend" [ref=f3e7] [cursor=pointer]:
+          - /url: "#/weekend"
+        - link "Standings" [ref=f3e8] [cursor=pointer]:
+          - /url: "#/standings"
+        - link "Drivers" [ref=f3e9] [cursor=pointer]:
+          - /url: "#/drivers"
+        - link "Staff" [ref=f3e10] [cursor=pointer]:
+          - /url: "#/staff"
+        - link "Development" [ref=f3e11] [cursor=pointer]:
+          - /url: "#/development"
+        - link "Facilities" [ref=f3e12] [cursor=pointer]:
+          - /url: "#/facilities"
+        - link "Finances" [ref=f3e13] [cursor=pointer]:
+          - /url: "#/finances"
+        - link "Sponsors" [ref=f3e14] [cursor=pointer]:
+          - /url: "#/sponsors"
+        - link "News" [ref=f3e15] [cursor=pointer]:
+          - /url: "#/news"
+        - link "Mods" [ref=f3e16] [cursor=pointer]:
+          - /url: "#/mods"
+        - link "Settings" [ref=f3e17] [cursor=pointer]:
+          - /url: "#/settings"
+      - generic [ref=f3e18]:
+        - generic [ref=f3e19]: S1 · R1/5
+        - generic [ref=f3e20]: $164.5M
+        - button "Save" [ref=f3e21] [cursor=pointer]
+        - button "Dev" [ref=f3e22] [cursor=pointer]
+    - generic [ref=f3e23]:
+      - generic [ref=f3e24]:
+        - generic [ref=f3e26]:
+          - generic [ref=f3e28]:
+            - button "TV Broadcast" [ref=f3e29] [cursor=pointer]
+            - button "Team" [ref=f3e30] [cursor=pointer]
+            - button "Driver" [ref=f3e31] [cursor=pointer]
+            - button "Track Map" [ref=f3e32] [cursor=pointer]
+            - button "Battle" [ref=f3e33] [cursor=pointer]
+          - generic [ref=f3e34]: "📺 overtake: Cortez passes Demir"
+          - generic:
+            - generic: Lap 1/24
+            - generic: Grant passes Demir
+            - generic: Lap 1/24
+            - generic: Lap 1/24
+            - generic: Horvat passes Patel
+            - generic: Lap 1/24
+        - generic [ref=f3e35]:
+          - generic [ref=f3e36]:
+            - generic [ref=f3e37]: P
+            - generic [ref=f3e38]: DRIVER
+            - generic [ref=f3e39]: GAP
+          - generic [ref=f3e40]:
+            - generic [ref=f3e41]: "1"
+            - generic [ref=f3e44]: Vasquez
+            - generic [ref=f3e45]: Leader
+            - generic [ref=f3e46]: L1·0p
+          - generic [ref=f3e47]:
+            - generic [ref=f3e48]: "2"
+            - generic [ref=f3e51]: Morimoto
+            - generic [ref=f3e52]: +0.0s
+            - generic [ref=f3e53]: L1·0p
+          - generic [ref=f3e54]:
+            - generic [ref=f3e55]: "3"
+            - generic [ref=f3e58]: Novak
+            - generic [ref=f3e59]: +0.0s
+            - generic [ref=f3e60]: L1·0p
+          - generic [ref=f3e61]:
+            - generic [ref=f3e62]: "4"
+            - generic [ref=f3e65]: Cortez
+            - generic [ref=f3e66]: +0.0s
+            - generic [ref=f3e67]: L1·0p
+          - generic [ref=f3e68]:
+            - generic [ref=f3e69]: "5"
+            - generic [ref=f3e72]: Mendes
+            - generic [ref=f3e73]: +0.0s
+            - generic [ref=f3e74]: L1·0p
+          - generic [ref=f3e75]:
+            - generic [ref=f3e76]: "6"
+            - generic [ref=f3e79]: Demir
+            - generic [ref=f3e80]: +0.0s
+            - generic [ref=f3e81]: L1·0p
+          - generic [ref=f3e82]:
+            - generic [ref=f3e83]: "7"
+            - generic [ref=f3e86]: Grant
+            - generic [ref=f3e87]: +0.0s
+            - generic [ref=f3e88]: L1·0p
+          - generic [ref=f3e89]:
+            - generic [ref=f3e90]: "8"
+            - generic [ref=f3e93]: Horvat
+            - generic [ref=f3e94]: +0.0s
+            - generic [ref=f3e95]: L1·0p
+          - generic [ref=f3e96]:
+            - generic [ref=f3e97]: "9"
+            - generic [ref=f3e100]: Patel
+            - generic [ref=f3e101]: +0.0s
+            - generic [ref=f3e102]: L1·0p
+          - generic [ref=f3e103]:
+            - generic [ref=f3e104]: "10"
+            - generic [ref=f3e107]: Okafor
+            - generic [ref=f3e108]: +0.0s
+            - generic [ref=f3e109]: L1·0p
+      - generic [ref=f3e110]:
+        - button [ref=f3e111] [cursor=pointer]
+        - generic [ref=f3e112]:
+          - button "1x" [ref=f3e113] [cursor=pointer]
+          - button "2x" [ref=f3e114] [cursor=pointer]
+          - button "4x" [ref=f3e115] [cursor=pointer]
+          - button "8x" [ref=f3e116] [cursor=pointer]
+        - button "⏪ 30s" [ref=f3e117] [cursor=pointer]
+        - button "⏮ Start" [ref=f3e118] [cursor=pointer]
+        - generic [ref=f3e119]: 00:00
+        - generic [ref=f3e120]: SIM sim-1.0.0 · SEED 1021735665
+        - button "Results" [ref=f3e121] [cursor=pointer]
+  - generic [ref=f3e122]: Save loaded.

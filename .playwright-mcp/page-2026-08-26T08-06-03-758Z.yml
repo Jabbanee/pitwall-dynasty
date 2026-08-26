@@ -1,0 +1,137 @@
+- generic [ref=f10e2]:
+  - generic [ref=f10e726]:
+    - generic [ref=f10e727]: PITWALL DYNASTY
+    - navigation [ref=f10e728]:
+      - link "Team HQ" [ref=f10e729] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=f10e730] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=f10e731] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=f10e732] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=f10e733] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=f10e734] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=f10e735] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=f10e736] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=f10e737] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=f10e738] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=f10e739] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=f10e740] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=f10e741]:
+      - generic [ref=f10e742]: S1 · R2/5
+      - generic [ref=f10e743]: $165.3M
+      - button "Save" [ref=f10e744] [cursor=pointer]
+      - button "Dev" [ref=f10e745] [cursor=pointer]
+  - generic [ref=f10e748]:
+    - generic [ref=f10e749]:
+      - generic [ref=f10e750]:
+        - heading "Round 2 — Altai Highlands" [level=2] [ref=f10e751]
+        - generic [ref=f10e752]: Management phase · Season 1 · Race 2/5
+      - button "Race weekend →" [ref=f10e753] [cursor=pointer]
+    - generic [ref=f10e754]:
+      - generic [ref=f10e756]:
+        - generic [ref=f10e757]:
+          - generic [ref=f10e758]: Championship
+          - generic [ref=f10e759]: P1
+        - generic [ref=f10e760]: 26 pts
+      - generic [ref=f10e762]:
+        - generic [ref=f10e763]:
+          - generic [ref=f10e764]: Balance
+          - generic [ref=f10e765]: $165.3M
+        - generic [ref=f10e766]: 2 sponsors
+      - generic [ref=f10e768]:
+        - generic [ref=f10e769]:
+          - generic [ref=f10e770]: Car pace
+          - generic [ref=f10e771]: "58"
+        - generic [ref=f10e772]: overall index
+      - generic [ref=f10e774]:
+        - generic [ref=f10e775]: Drivers
+        - generic [ref=f10e777]:
+          - generic [ref=f10e778]:
+            - generic [ref=f10e779]: M. Vasquez
+            - generic [ref=f10e780]: "92"
+          - generic [ref=f10e781]:
+            - generic [ref=f10e782]: J. Lindqvist
+            - generic [ref=f10e783]: "90"
+    - generic [ref=f10e784]:
+      - generic [ref=f10e785]:
+        - heading "Paddock News" [level=3] [ref=f10e787]
+        - generic [ref=f10e789]:
+          - generic [ref=f10e790]: S1 · R1
+          - heading "RACE RESULT — Harborfield Street Circuit" [level=4] [ref=f10e791]
+          - paragraph [ref=f10e792]: "Vasquez (Your Racing Team) wins at Harborfield Street Circuit. Fastest lap: Vasquez."
+      - generic [ref=f10e793]:
+        - generic [ref=f10e794]:
+          - heading "Development" [level=3] [ref=f10e795]
+          - button "Open" [ref=f10e796] [cursor=pointer]
+        - generic [ref=f10e797]: No active projects.
+    - generic [ref=f10e799]:
+      - generic [ref=f10e800]:
+        - generic [ref=f10e801]:
+          - heading "Constructors" [level=3] [ref=f10e802]
+          - button "Full table" [ref=f10e803] [cursor=pointer]
+        - table [ref=f10e804]:
+          - rowgroup [ref=f10e805]:
+            - row [ref=f10e806]:
+              - columnheader "#" [ref=f10e807]
+              - columnheader "Team" [ref=f10e808]
+              - columnheader "Pts" [ref=f10e809]
+              - columnheader "Wins" [ref=f10e810]
+          - rowgroup [ref=f10e811]:
+            - row [ref=f10e812]:
+              - cell "1" [ref=f10e813]
+              - cell "Your Racing Team" [ref=f10e814]
+              - cell "26" [ref=f10e816]
+              - cell "1" [ref=f10e817]
+            - row [ref=f10e818]:
+              - cell "2" [ref=f10e819]
+              - cell "Boreal GP" [ref=f10e820]
+              - cell "18" [ref=f10e822]
+              - cell "0" [ref=f10e823]
+            - row [ref=f10e824]:
+              - cell "3" [ref=f10e825]
+              - cell "Meridian Motorsport" [ref=f10e826]
+              - cell "15" [ref=f10e828]
+              - cell "0" [ref=f10e829]
+            - row [ref=f10e830]:
+              - cell "4" [ref=f10e831]
+              - cell "Aquila Corse" [ref=f10e832]
+              - cell "12" [ref=f10e834]
+              - cell "0" [ref=f10e835]
+            - row [ref=f10e836]:
+              - cell "5" [ref=f10e837]
+              - cell "Kestrel Racing" [ref=f10e838]
+              - cell "10" [ref=f10e840]
+              - cell "0" [ref=f10e841]
+            - row [ref=f10e842]:
+              - cell "6" [ref=f10e843]
+              - cell "Polaris Works" [ref=f10e844]
+              - cell "8" [ref=f10e846]
+              - cell "0" [ref=f10e847]
+      - generic [ref=f10e848]:
+        - heading "Calendar" [level=3] [ref=f10e850]
+        - generic [ref=f10e851]:
+          - generic [ref=f10e852]:
+            - generic [ref=f10e853]: R1 Harborfield Street Circuit
+            - generic [ref=f10e854]: Done
+          - generic [ref=f10e855]:
+            - generic [ref=f10e856]: R2 Altai Highlands
+            - generic [ref=f10e857]: Current
+          - generic [ref=f10e858]:
+            - generic [ref=f10e859]: R3 Monteverde Hills
+            - generic [ref=f10e860]: Upcoming
+          - generic [ref=f10e861]:
+            - generic [ref=f10e862]: R4 Kirinawa Speedring
+            - generic [ref=f10e863]: Upcoming
+          - generic [ref=f10e864]:
+            - generic [ref=f10e865]: R5 Nordheim Waldstrecke
+            - generic [ref=f10e866]: Upcoming

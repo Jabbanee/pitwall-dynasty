@@ -1,0 +1,187 @@
+- generic [ref=f10e2]:
+  - generic [ref=f10e527]:
+    - generic [ref=f10e528]: PITWALL DYNASTY
+    - navigation [ref=f10e529]:
+      - link "Team HQ" [ref=f10e530] [cursor=pointer]:
+        - /url: "#/hq"
+      - link "Race Weekend" [ref=f10e531] [cursor=pointer]:
+        - /url: "#/weekend"
+      - link "Standings" [ref=f10e532] [cursor=pointer]:
+        - /url: "#/standings"
+      - link "Drivers" [ref=f10e533] [cursor=pointer]:
+        - /url: "#/drivers"
+      - link "Staff" [ref=f10e534] [cursor=pointer]:
+        - /url: "#/staff"
+      - link "Development" [ref=f10e535] [cursor=pointer]:
+        - /url: "#/development"
+      - link "Facilities" [ref=f10e536] [cursor=pointer]:
+        - /url: "#/facilities"
+      - link "Finances" [ref=f10e537] [cursor=pointer]:
+        - /url: "#/finances"
+      - link "Sponsors" [ref=f10e538] [cursor=pointer]:
+        - /url: "#/sponsors"
+      - link "News" [ref=f10e539] [cursor=pointer]:
+        - /url: "#/news"
+      - link "Mods" [ref=f10e540] [cursor=pointer]:
+        - /url: "#/mods"
+      - link "Settings" [ref=f10e541] [cursor=pointer]:
+        - /url: "#/settings"
+    - generic [ref=f10e542]:
+      - generic [ref=f10e543]: S1 · R1/5
+      - generic [ref=f10e544]: $165.3M
+      - button "Save" [ref=f10e545] [cursor=pointer]
+      - button "Dev" [ref=f10e546] [cursor=pointer]
+  - generic [ref=f10e549]:
+    - heading "Race 1 Results — Harborfield Street Circuit" [level=2] [ref=f10e550]
+    - generic [ref=f10e551]:
+      - generic [ref=f10e553]:
+        - generic [ref=f10e554]: 🥇 P1
+        - heading "M. Vasquez" [level=3] [ref=f10e555]
+        - generic [ref=f10e556]: Your Racing Team
+        - generic [ref=f10e557]: Fastest Lap
+      - generic [ref=f10e559]:
+        - generic [ref=f10e560]: 🥈 P2
+        - heading "D. Okafor" [level=3] [ref=f10e561]
+        - generic [ref=f10e562]: Boreal GP
+      - generic [ref=f10e564]:
+        - generic [ref=f10e565]: 🥉 P3
+        - heading "L. Mendes" [level=3] [ref=f10e566]
+        - generic [ref=f10e567]: Meridian Motorsport
+    - table [ref=f10e569]:
+      - rowgroup [ref=f10e570]:
+        - row [ref=f10e571]:
+          - columnheader "Pos" [ref=f10e572]
+          - columnheader "Driver" [ref=f10e573]
+          - columnheader "Team" [ref=f10e574]
+          - columnheader "Grid" [ref=f10e575]
+          - columnheader "Laps" [ref=f10e576]
+          - columnheader "Best lap" [ref=f10e577]
+          - columnheader "Pits" [ref=f10e578]
+          - columnheader "Pts" [ref=f10e579]
+          - columnheader "Status" [ref=f10e580]
+      - rowgroup [ref=f10e581]:
+        - row [ref=f10e582]:
+          - cell "1" [ref=f10e583]
+          - cell "M. Vasquez FL" [ref=f10e584]:
+            - text: M. Vasquez
+            - generic [ref=f10e585]: FL
+          - cell "YOU" [ref=f10e586]
+          - cell "1" [ref=f10e588]
+          - cell "28" [ref=f10e589]
+          - cell "1:29.162" [ref=f10e590]
+          - cell "2" [ref=f10e591]
+          - cell "26" [ref=f10e592]
+          - cell "Classified" [ref=f10e593]
+        - row [ref=f10e595]:
+          - cell "2" [ref=f10e596]
+          - cell "D. Okafor" [ref=f10e597]
+          - cell "BOR" [ref=f10e598]
+          - cell "4" [ref=f10e600]
+          - cell "28" [ref=f10e601]
+          - cell "1:29.487" [ref=f10e602]
+          - cell "2" [ref=f10e603]
+          - cell "18" [ref=f10e604]
+          - cell "Classified" [ref=f10e605]
+        - row [ref=f10e607]:
+          - cell "3" [ref=f10e608]
+          - cell "L. Mendes" [ref=f10e609]
+          - cell "MER" [ref=f10e610]
+          - cell "3" [ref=f10e612]
+          - cell "28" [ref=f10e613]
+          - cell "1:29.814" [ref=f10e614]
+          - cell "2" [ref=f10e615]
+          - cell "15" [ref=f10e616]
+          - cell "Classified" [ref=f10e617]
+        - row [ref=f10e619]:
+          - cell "4" [ref=f10e620]
+          - cell "K. Morimoto" [ref=f10e621]
+          - cell "AQU" [ref=f10e622]
+          - cell "2" [ref=f10e624]
+          - cell "28" [ref=f10e625]
+          - cell "1:29.664" [ref=f10e626]
+          - cell "3" [ref=f10e627]
+          - cell "12" [ref=f10e628]
+          - cell "Classified" [ref=f10e629]
+        - row [ref=f10e631]:
+          - cell "5" [ref=f10e632]
+          - cell "E. Novak" [ref=f10e633]
+          - cell "KES" [ref=f10e634]
+          - cell "7" [ref=f10e636]
+          - cell "28" [ref=f10e637]
+          - cell "1:29.713" [ref=f10e638]
+          - cell "2" [ref=f10e639]
+          - cell "10" [ref=f10e640]
+          - cell "Classified" [ref=f10e641]
+        - row [ref=f10e643]:
+          - cell "6" [ref=f10e644]
+          - cell "R. Cortez" [ref=f10e645]
+          - cell "POL" [ref=f10e646]
+          - cell "6" [ref=f10e648]
+          - cell "28" [ref=f10e649]
+          - cell "1:31.054" [ref=f10e650]
+          - cell "2" [ref=f10e651]
+          - cell "8" [ref=f10e652]
+          - cell "Classified" [ref=f10e653]
+        - row [ref=f10e655]:
+          - cell "7" [ref=f10e656]
+          - cell "O. Grant" [ref=f10e657]
+          - cell "VAN" [ref=f10e658]
+          - cell "9" [ref=f10e660]
+          - cell "28" [ref=f10e661]
+          - cell "1:30.217" [ref=f10e662]
+          - cell "2" [ref=f10e663]
+          - cell "6" [ref=f10e664]
+          - cell "Classified" [ref=f10e665]
+        - row [ref=f10e667]:
+          - cell "8" [ref=f10e668]
+          - cell "N. Horvat" [ref=f10e669]
+          - cell "HOR" [ref=f10e670]
+          - cell "10" [ref=f10e672]
+          - cell "28" [ref=f10e673]
+          - cell "1:30.579" [ref=f10e674]
+          - cell "2" [ref=f10e675]
+          - cell "4" [ref=f10e676]
+          - cell "Classified" [ref=f10e677]
+        - row [ref=f10e679]:
+          - cell "9" [ref=f10e680]
+          - cell "Y. Demir" [ref=f10e681]
+          - cell "SBX" [ref=f10e682]
+          - cell "5" [ref=f10e684]
+          - cell "28" [ref=f10e685]
+          - cell "1:30.199" [ref=f10e686]
+          - cell "3" [ref=f10e687]
+          - cell "2" [ref=f10e688]
+          - cell "Classified" [ref=f10e689]
+        - row [ref=f10e691]:
+          - cell "10" [ref=f10e692]
+          - cell "S. Patel" [ref=f10e693]
+          - cell "COB" [ref=f10e694]
+          - cell "8" [ref=f10e696]
+          - cell "28" [ref=f10e697]
+          - cell "1:32.088" [ref=f10e698]
+          - cell "2" [ref=f10e699]
+          - cell "1" [ref=f10e700]
+          - cell "Classified" [ref=f10e701]
+    - generic [ref=f10e703]:
+      - generic [ref=f10e704]:
+        - heading "Key Moments" [level=3] [ref=f10e705]
+        - button "Rewatch broadcast" [ref=f10e706] [cursor=pointer]
+      - generic [ref=f10e707]:
+        - generic [ref=f10e708]:
+          - generic [ref=f10e709]: Cortez passes Okafor
+          - generic [ref=f10e710]: 3:05
+        - generic [ref=f10e711]:
+          - generic [ref=f10e712]: Okafor passes Cortez
+          - generic [ref=f10e713]: 7:40
+        - generic [ref=f10e714]:
+          - generic [ref=f10e715]: Grant passes Horvat
+          - generic [ref=f10e716]: 29:01
+        - generic [ref=f10e717]:
+          - generic [ref=f10e718]: Demir passes Patel
+          - generic [ref=f10e719]: 31:40
+        - generic [ref=f10e720]:
+          - generic [ref=f10e721]: Horvat passes Grant
+          - generic [ref=f10e722]: 38:18
+    - generic [ref=f10e723]:
+      - button "Next round →" [ref=f10e724] [cursor=pointer]
+      - button "Back to HQ" [ref=f10e725] [cursor=pointer]

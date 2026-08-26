@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pitwall Dynasty</title>
+    <style>
+      html, body { margin: 0; background: #07090c; }
+      #app:empty::after {
+        content: 'Loading Pitwall Dynasty…';
+        display: flex; align-items: center; justify-content: center;
+        height: 100vh; color: #5f7183; font-family: system-ui, sans-serif;
+        letter-spacing: 0.1em; text-transform: uppercase; font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/ui/app.ts"></script>
+  </body>
+</html>
