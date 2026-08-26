@@ -38,7 +38,10 @@
       "Shell(del:*)",
       "Shell(rmdir:*)",
       "Shell(npx vitest run tests/agency.test.ts 2 >& 1)",
-      "Shell(npx vitest run tests/regulations.test.ts 2 >& 1)"
+      "Shell(npx vitest run tests/regulations.test.ts 2 >& 1)",
+      "Shell(npx vitest run tests/multiplayer.test.ts 2 >& 1)",
+      "Shell(npx vitest run tests/multiplayer.test.ts -t disconnect 2 >& 1)",
+      "Shell(npx vitest run tests/multiplayer.test.ts -t rewind 2 >& 1)"
     ],
     "deny": [],
     "defaultMode": "default"
