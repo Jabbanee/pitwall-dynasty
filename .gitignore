@@ -9,3 +9,5 @@ scripts/append-css.cjs
 scripts/temp-*
 .tmp
 .temp
+dist-electron/
+release/
