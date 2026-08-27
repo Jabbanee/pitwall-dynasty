@@ -212,6 +212,27 @@ Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 Two-client smoke test: PASS (shared championship ID, identical
 finishing order, identical standings, both clients advance to R2).
 
+## Visual identity (P1)
+
+The UI was redesigned as a proper PC motorsport management game:
+
+- New game design system in `src/ui/styles.css` (cinematic,
+  panel, card, telemetry, chip layers + motion + typography +
+  button hierarchy).
+- New main-menu title screen with brand block, mode stack,
+  circuit-board SVG, scan lines and kicker metadata.
+- New Team HQ hero next-event card with circuit thumbnail and
+  stat grid.
+- New multiplayer lobby layout (focal code panel + player slots).
+- New broadcast chrome: driver follow strip, broadcast timing
+  tower, team-colour-stripped driver rows.
+- New podium presentation with P1/P2/P3 rank gradients.
+- New Paddock Post masthead and editorial layout.
+- New icon set in `src/ui/icons.ts` (all original, inline SVG).
+- See `docs/VISUAL_STYLE_GUIDE.md` and
+  `docs/ART_ASSET_MANIFEST.md` for the design contract and asset
+  inventory.
+
 ## Last QA
 
 Multiplayer P0 completion pass, 2026-08-27. Two-client verification

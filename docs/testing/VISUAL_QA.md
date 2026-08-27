@@ -30,6 +30,38 @@ The new Multiplayer P0 set is under `docs/testing/screenshots/multiplayer-p0/`.
 | 19 | `phase2/19-lobby-allready.png` | Multiplayer lobby — both ready | FW6BVU, 2 players both READY, host can start championship | PASS |
 | 20 | `phase2/20-multiplayer-management.png` | Post-start HQ | Round 3, 44 pts, season 1 race 3/5 | PASS |
 
+# Visual Identity & PC Game Presentation Pass
+
+This pass replaces the Phase 2 flat-dashboard look with a layered
+game design system. The menu becomes a PC title screen, Team HQ
+gains a hero next-event card, multiplayer lobby shows real player
+slots, broadcast HUD gets a polished timing tower and driver
+follow strip, results gain a podium, Paddock Post is treated as a
+fictional publication.
+
+| File | Screen | Design improvements | Status |
+| --- | --- | --- | --- |
+| `visual-game-pass/01-main-menu.png` | Main menu | PC title screen with brand left, mode stack right, circuit-board SVG background, scan lines, kicker metadata, footer credits. New mode tiles, iconography, hover states, continue-mode support. | PASS |
+| `visual-game-pass/03-team-hq.png` | Team HQ | Hero next-event card with circuit thumbnail SVG + 6-cell stat grid + primary CTA; mini KPI tiles; paddock news; development panel. Page-level cinematic radial-gradient backdrop. | PASS (via overlay commit) |
+| `visual-game-pass/09-multiplayer-lobby.png` | Multiplayer lobby | New `.lobby-shell` two-column layout with focal 56px lobby code, status row, team picker with colour stripes, player slots with host pill. | PASS |
+| `visual-game-pass/12-multiplayer-results.png` | Multiplayer results | MULTIPLAYER · D6H76V header pill, qualifying grid with team colour dots, podium (P1/P2/P3 rank pills with gold/silver/bronze gradients), full classification with me-row highlight. | PASS |
+| `visual-game-pass/17-paddock-post.png` | Paddock Post | Paddock Post masthead with gold accent rule; awaiting race data. | PASS (header verified) |
+
+## Where the new visual system shows up in code
+
+- `src/ui/styles.css` — full game design system (cinematic + panel +
+  card + telemetry layers, motion, typography, button hierarchy).
+- `src/ui/menu.ts` — `.title-screen` PC main menu.
+- `src/ui/hq.ts` — `.hero-panel` focal next-event card.
+- `src/ui/lobby.ts` — `.lobby-shell`, `.lobby-info-panel`,
+  `.player-slot`, `.team-pick`.
+- `src/ui/multiplayer-views.ts` — multiplayer HQ / results / paddock
+  using the same team-coloured tokens.
+- `src/ui/three/broadcast3d.ts` — `.b3d-follow-strip` driver
+  identity strip, `.b3d-timing` broadcast tower.
+- `src/ui/icons.ts` — original inline-SVG icon set used across the
+  menu, HQ, lobby, and dev tools.
+
 # Multiplayer P0 — True Shared Race
 
 Two-client verification of the server-authoritative race. The lobby
