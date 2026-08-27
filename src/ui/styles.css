@@ -1209,5 +1209,72 @@ td.num, th.num { text-align: right; font-family: var(--font-mono); }
 .contract-card .contract-name { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
 .contract-card .acceptance { padding: 10px 14px; border-radius: var(--radius-3); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 6px; background: var(--bg-data-0); }
 .contract-card .acceptance .verdict { font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ===========================================================
+ * PC menu — secondary actions and footer layout
+ * =========================================================== */
+.ts-secondary {
+  display: flex; gap: 10px; align-items: center; justify-content: flex-end;
+  padding: 14px 32px 0; position: relative; z-index: 2;
+}
+.ts-secondary-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-1);
+  color: var(--text-0);
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  padding: 9px 16px; border-radius: var(--radius-2);
+  cursor: pointer; transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.ts-secondary-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--line-2); }
+.ts-secondary-btn .icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); }
+.ts-secondary-quit { background: rgba(230, 57, 70, 0.10); border-color: rgba(230, 57, 70, 0.4); color: #ff8088; }
+.ts-secondary-quit:hover { background: rgba(230, 57, 70, 0.20); }
+.ts-footer { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; position: relative; z-index: 2; }
+.ts-footer .left, .ts-footer .right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ===========================================================
+ * Load Game
+ * =========================================================== */
+.page-load { max-width: 980px; margin: 0 auto; }
+.load-head { margin-bottom: 18px; }
+.load-head h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; }
+.load-list { display: flex; flex-direction: column; gap: 10px; }
+.load-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 14px 18px; background: var(--bg-panel-0); border: 1px solid var(--line-1); border-radius: var(--radius-3); }
+.load-row-icon { width: 56px; height: 56px; border-radius: var(--radius-2); background: rgba(255, 255, 255, 0.04); display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.load-row-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+.load-row-sub { font-size: 12px; color: var(--text-1); margin-top: 2px; }
+.load-row-meta { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.load-row-actions { display: flex; gap: 8px; }
+.load-row-actions button { min-width: 80px; }
+.load-nav { display: flex; justify-content: flex-start; margin-top: 16px; }
+
+/* ===========================================================
+ * Settings
+ * =========================================================== */
+.page-settings { max-width: 980px; margin: 0 auto; }
+.settings-head { margin-bottom: 16px; }
+.settings-head h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; }
+.settings-section { background: var(--bg-panel-0); border: 1px solid var(--line-1); border-radius: var(--radius-3); padding: 18px 20px; margin-top: 16px; }
+.settings-section h2 { font-family: var(--font-display); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-2); margin-bottom: 14px; }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.settings-field { display: flex; flex-direction: column; gap: 6px; }
+.settings-field .label { font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-2); }
+.settings-field .value { font-family: var(--font-mono); font-size: 12px; color: var(--text-1); }
+.settings-field input[type="text"], .settings-field select { background: var(--bg-data-0); border: 1px solid var(--line-1); color: var(--text-0); font-family: var(--font-display); font-size: 13px; padding: 8px 10px; border-radius: var(--radius-2); }
+.settings-field input[type="text"]:focus, .settings-field select:focus { outline: none; border-color: var(--accent); }
+.settings-field input[type="range"] { width: 100%; }
+.settings-toggle { position: relative; padding-right: 48px; }
+.settings-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.settings-toggle .switch { position: absolute; right: 0; top: 6px; width: 38px; height: 22px; background: var(--bg-data-0); border: 1px solid var(--line-2); border-radius: 999px; cursor: pointer; transition: background 160ms var(--ease-out); }
+.settings-toggle .switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; background: var(--text-2); border-radius: 50%; transition: transform 160ms var(--ease-out), background 160ms var(--ease-out); }
+.settings-toggle input:checked + .switch { background: rgba(230, 57, 70, 0.6); }
+.settings-toggle input:checked + .switch::after { transform: translateX(16px); background: #fff; }
+.settings-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-family: var(--font-mono); font-size: 12px; color: var(--text-1); }
+.settings-keys li::before { content: '› '; color: var(--accent); }
+.settings-actions { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 32px; }
+.settings-actions .ghost { background: transparent; border: 1px solid var(--line-1); color: var(--text-1); }
 .contract-card .acceptance .reasons { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-2); }
 .contract-card .acceptance .reasons .row { display: flex; gap: 6px; }

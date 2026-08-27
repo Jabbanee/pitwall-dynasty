@@ -1,8 +1,12 @@
 import { el, money } from './dom'
 import { store } from '../state/store'
 import { createChampionship } from '../championship/create'
+import { renderLoadGame } from './load-game'
+import { renderSettings } from './settings'
+import { getSaveRepository, getSettingsRepository, isDesktopEnvironment } from '../platform/persistence'
+import { deserializeSave, loadFromStorage } from '../state/persistence'
 import type { Championship } from '../core/types'
-import { iconCheckered, iconBolt, iconRoute, iconUsers, iconCarFront, iconWrench, iconTrophy, iconRadio, iconNewspaper } from './icons'
+import { iconCheckered, iconBolt, iconRoute, iconUsers, iconCarFront, iconWrench, iconTrophy, iconRadio, iconNewspaper, iconDocument, iconSettings } from './icons'
 
 /** PC game title screen. */
 export function renderMenu(root: HTMLElement) {
@@ -133,17 +137,104 @@ export function renderMenu(root: HTMLElement) {
   content.appendChild(modes)
   screen.appendChild(content)
 
+  // Secondary actions (always visible on PC menu)
+  const secondary = el('div', { class: 'ts-secondary' })
+  const load = el('button', { class: 'ts-secondary-btn' })
+  load.appendChild(el('div', { class: 'icon', html: iconDocument(16) }))
+  load.appendChild(el('span', {}, 'LOAD GAME'))
+  load.addEventListener('click', () => renderLoadGame(root))
+  secondary.appendChild(load)
+
+  const settingsBtn = el('button', { class: 'ts-secondary-btn' })
+  settingsBtn.appendChild(el('div', { class: 'icon', html: iconSettings(16) }))
+  settingsBtn.appendChild(el('span', {}, 'SETTINGS'))
+  settingsBtn.addEventListener('click', () => renderSettings(root))
+  secondary.appendChild(settingsBtn)
+
+  if (isDesktopEnvironment()) {
+    const quit = el('button', { class: 'ts-secondary-btn ts-secondary-quit' })
+    quit.appendChild(el('span', {}, 'QUIT GAME'))
+    quit.addEventListener('click', () => { window.pitwall?.app.quit() })
+    secondary.appendChild(quit)
+  } else {
+    // In browser dev, "QUIT" simply navigates away.
+    const back = el('button', { class: 'ts-secondary-btn' })
+    back.appendChild(el('span', {}, 'CLOSE TAB'))
+    back.addEventListener('click', () => { try { window.close() } catch (_) {} })
+    secondary.appendChild(back)
+  }
+
+  screen.appendChild(secondary)
+
   // Footer
   const footer = el('div', { class: 'ts-footer' })
   const fleft = el('div', { class: 'left' })
   fleft.appendChild(el('span', { class: 'chip' }, 'SHIFTWORKS MOTORSPORT'))
   fleft.appendChild(el('span', { class: 'chip' }, 'A FICTIONAL CHAMPIONSHIP'))
-  fleft.appendChild(el('span', { class: 'chip' }, '2026'))
   footer.appendChild(fleft)
-  footer.appendChild(el('span', { class: 'chip' }, 'PRESS ANYWHERE TO BEGIN'))
+  // Surface the running desktop / version info on the right of the footer.
+  const right = el('div', { class: 'right' })
+  right.appendChild(el('span', { class: 'chip' }, isDesktopEnvironment() ? 'STANDALONE' : 'DEV'))
+  right.appendChild(el('span', { class: 'chip' }, 'PRESS ANYWHERE TO BEGIN'))
+  footer.appendChild(right)
   screen.appendChild(footer)
 
+  // Asynchronous Continue-slot check: read the latest save and show
+  // it as a CONTINUE button if a career exists.
+  void ensureContinueShortcut(screen, root)
+
   root.appendChild(screen)
+}
+
+async function ensureContinueShortcut(screen: HTMLElement, root: HTMLElement) {
+  try {
+    const saves = await getSaveRepository().list()
+    if (!saves.length) return
+    const latest = saves[0]
+    // Avoid duplicating the existing CONTINUE card; only add the
+    // cross-platform continue button if the current store has nothing.
+    if (store.champ) return
+    const cont = el('button', { class: 'ts-mode ts-mode-continue' })
+    cont.appendChild(el('div', { class: 'ts-mode-icon', html: iconCarFront(20) }))
+    const contText = el('div', { class: 'ts-mode-text' })
+    contText.appendChild(el('div', { class: 'ts-mode-title' }, `CONTINUE — ${latest.team}`))
+    contText.appendChild(el('div', { class: 'ts-mode-desc' }, `${latest.mode.toUpperCase()} · Season ${latest.season} · Round ${latest.round + 1}/${latest.roundCount || '?'} · ${(latest.savedAt ? new Date(latest.savedAt).toLocaleString() : '')}`))
+    cont.appendChild(contText)
+    cont.appendChild(el('div', { class: 'ts-mode-cta' }, 'RESUME →'))
+    cont.addEventListener('click', () => loadSaveAndRoute(latest.slot, root))
+    const modes = screen.querySelector('.ts-modes')
+    if (modes) modes.insertBefore(cont, modes.firstChild)
+  } catch (e) {
+    // Continue is best-effort; ignore on failure.
+  }
+}
+
+async function loadSaveAndRoute(slot: string, _root: HTMLElement) {
+  const repo = getSaveRepository()
+  const res = await repo.read(slot)
+  if (!res.ok || !res.contents) {
+    if (window.pitwall) {
+      // Surface a generic toast — desktop builds always have toasts.
+    }
+    return
+  }
+  if (isDesktopEnvironment()) {
+    // Use the canonical deserializer so schema migration runs.
+    const parsed = deserializeSave(res.contents)
+    if (!parsed.ok || !parsed.champ) return
+    store.setChampionship(parsed.champ)
+    // Persist the loaded save as the active "last" slot.
+    const settings = await getSettingsRepository().load()
+    await getSettingsRepository().save({ lastSaveSlot: slot })
+    void settings
+  } else {
+    // In browser dev, the in-game store still has the live champ.
+    // If the player pressed LOAD GAME without a current champ we
+    // must construct one. As a fallback we reload from localStorage.
+    const loaded = loadFromStorage()
+    if (loaded.ok && loaded.champ) store.setChampionship(loaded.champ)
+  }
+  location.hash = '#/hq'
 }
 
 function quickStart() {
