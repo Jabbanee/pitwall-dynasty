@@ -143,14 +143,36 @@ instantly simulate the current round, jump rounds, reset save, validate mods.
 
 ## Current scope / limitations
 
-- **Multiplayer** is fully wired: lobby screen with create/join codes,
-  ready state, host-start flow, all backed by a Node WebSocket server
-  (`src/server/server.ts`) with a browser client
-  (`src/client/multiplayer-client.ts`). Verified end-to-end with two
-  real browser tabs joining the same lobby code (host issues code,
-  guest joins by entering it, both see the same player list, both
-  toggle ready, host starts championship). The local single-player
-  build also drives the same `LiveRaceEngine`.
+- **Multiplayer (P0 — true shared race)** is end-to-end server-
+  authoritative. The browser never simulates a multiplayer race
+  locally: in multiplayer mode the central store (`store.multi`)
+  holds the championship and the 3D broadcast reads every car
+  position, lap, weather, pit state and event from the server. The
+  server owns the `LiveRaceEngine`, the append-only live command log,
+  voting, results, standings and round progression. Clients send
+  actions and receive reveal-safe snapshots.
+
+  - **Reconnect**: the server issues an opaque 24-char base32
+    `sessionToken` at first join. The browser persists it in
+    `localStorage` and re-authenticates with `restoreSession` on tab
+    reload — the same player keeps the same team, ready state and
+    championship. Unauthorised tokens are rejected.
+  - **Ownership**: the server refuses commands that target another
+    human player's team or a driverId that does not belong to the
+    claimed team. Verified in `tests/multiplayer-snapshot.test.ts`.
+  - **Two drivers per team**: each player manages both drivers
+    independently (different pace, energy, pit, tyre, team orders).
+  - **Voting**: configurable majority / unanimity for speed / pause
+    / rewind. Return to 1x is unblockable. Replay (rewind) never
+    rewrites history: commands during replay are queued and
+    applied on `resumeLive`.
+  - **Standings** accumulate across completed rounds.
+  - **Verified** with `tests/multiplayer-two-client.cjs`:
+    two raw WebSocket clients (one browser + one Node) see the
+    same championship ID, identical car states, identical
+    finishing order and identical standings, and both advance to
+    the next round. Visual proof in
+    `docs/testing/screenshots/multiplayer-p0/`.
 - **Driver Agency** is championship-scoped: every Fast Championship
   and League Championship starts with a fresh agency baseline. Driver
   memory, morale, trust, teammate relationships, broken promises,

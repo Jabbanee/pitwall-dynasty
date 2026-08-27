@@ -1,6 +1,6 @@
 # Pitwall Dynasty — Project Status
 
-Last updated: end of Phase 2 continuation run (2026-08-26).
+Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 
 ## Implemented
 
@@ -20,20 +20,63 @@ Last updated: end of Phase 2 continuation run (2026-08-26).
 - Pit-entry decision point: PIT_THIS_LAP after the entry point
   defers to next lap deterministically
 
-### Multiplayer
-- Authoritative WebSocket server (`src/server/server.ts`) on
-  `ws://localhost:8080`
-- `MultiplayerLobby` class with fresh championship state (no inherited
-  agency / promises / media history)
-- Browser `MultiplayerClient` (queue, reconnect, welcome message)
-- Lobby screen (`src/ui/lobby.ts`) with create / join by code, player
-  list, ready toggle, host-start button
-- Join codes, ready state, management phase
-- Live race with reveal-safe snapshots
-- Voting (speed / pause / rewind)
-- Verified end-to-end with two real browser tabs (host issues code
-  e.g. `FW6BVU`, guest joins by entering the code, both ready, host
-  starts — `phaseChange` broadcast to both clients)
+### Multiplayer (P0 — complete shared race)
+- **Authoritative WebSocket server** (`src/server/server.ts`) on
+  `ws://localhost:8080`. The server owns the championship, live
+  race, voting, and command log end-to-end.
+- **`MultiplayerLobby`** (`src/server/multiplayer-server.ts`) with
+  fresh championship state per lobby (no inherited agency,
+  promises, media history) and `availableTeams` so the team picker
+  shows the same set the eventual championship is built from.
+- **`MultiplayerSession`** (`src/client/multiplayer-session.ts`) —
+  process-wide singleton that owns the WS, replays server
+  snapshots into a typed `MultiplayerView`, and writes them to
+  `store.multi`. Persists the server-issued `sessionToken` in
+  localStorage so a tab reload reconnects the SAME player.
+- **`store.multi`** is the strict multiplayer-mode mirror of the
+  championship. When `store.multi.active === true` the broadcast,
+  HQ, results, standings and paddock routes read from `store.multi`
+  and NEVER consult the local `store.champ`. Joining a multiplayer
+  lobby also calls `store.clearLocalChampionship()` so a previous
+  Quick Start cannot contaminate the multiplayer view.
+- **`broadcast3d.ts`** (`src/ui/three/broadcast3d.ts`) no longer
+  constructs its own `MultiplayerClient` and no longer falls back to
+  a local `LiveRaceEngine` while a multiplayer session is active.
+  Local-only mode (no `mpSession.view.joined`) still runs the local
+  engine.
+- **Server-driven snapshots** broadcast `lobbyState`, `raceState`,
+  `raceStart`, `raceComplete`, `phaseChange`, `voteState`,
+  `lobbyState` (re-emitted after `raceComplete` so the client sees
+  the new `phase: 'roundResults'`).
+- **Reconnect via opaque sessionToken** — clients persist a 24-char
+  base32 token (`pitwall-dynasty.mp.session`) and re-authenticate
+  on tab reload. The server swaps the connection-local handle for
+  the durable `playerId`. Unauthorised tokens are rejected.
+- **Ownership validation** — the server refuses commands that try
+  to act on another human player's team or on a driverId that does
+  not belong to the claimed team.
+- **Voting** — speed / pause / rewind with configurable majority /
+  unanimity. Return to 1x is unblockable. Replay (rewind) never
+  rewrites history: commands during replay are queued and applied
+  on `resumeLive`.
+- **Two-driver per team** — verified by the championship builder
+  and the strategy panel UI. Players manage both drivers
+  independently.
+- **Driver Agency starts fresh** in every multiplayer championship
+  (no inherited grudges, default trust 65, default morale 65).
+- **Two-round cross-client verification** — `tests/multiplayer-two-client.cjs`
+  spawns two raw WebSocket clients against the same server and
+  asserts the championship ID, circuit, race phase, car states,
+  vote outcomes, finishing order and standings are byte-for-byte
+  identical on both clients at every step. The two-client test
+  also verifies that opponent-team commands are rejected and that
+  `nextRound` advances both clients to the same next round.
+- **14 new vitest tests** in `tests/multiplayer-snapshot.test.ts`
+  cover: standings accumulation, roundResults clearing,
+  `nextRound` phase guard, two drivers per team, opponent-driver
+  rejection, two-driver independent pacing, fresh agency,
+  sessionToken issue/accept/reject, team ownership across
+  reconnect, and two simultaneous sessionTokens.
 
 ### Driver Agency
 - Championship-scoped state store (DriverAgencyStore)
@@ -68,6 +111,10 @@ Last updated: end of Phase 2 continuation run (2026-08-26).
 - Notification suppression when the battle is already on screen
 - Independent per-player camera (no shared camera state)
 - LEAD + ANALYST commentary ribbon overlaid on the 3D canvas
+- **MULTIPLAYER · CODE** badge in the broadcast top-right when a
+  multiplayer session is active, plus a connection state pill
+  (CONNECTED / RECONNECTING / OFFLINE / ERROR). The local
+  championship is never shown in this mode.
 
 ### Live strategy
 - Pace: conserve / normal / push / attack
@@ -117,21 +164,22 @@ Last updated: end of Phase 2 continuation run (2026-08-26).
 - Commentator ribbon + tail in 3D broadcast
 - Save with schema versioning and migrations
 - Multiplayer two-client tested live
+- MULTIPLAYER indicator + connection state in the broadcast
 
 ### Tests
-- 104 vitest tests across 15 files
+- **118 vitest tests** across 16 files
 - Pure-domain logic, deterministic, fast
+- Two-client WebSocket smoke test in
+  `tests/multiplayer-two-client.cjs` (run manually with the
+  multiplayer server up)
 
 ## Partially implemented
 
 - 3D track circuits remain flat procedural geometry (no per-track
   elevation models). Acceptable for helicopter broadcast framing.
-- The multiplayer championship state lives on the server; the
-  local `store.champ` is the previously-saved championship. The
-  lobby→race navigation lands on the local championship's HQ by
-  default. A future pass should hydrate `store.champ` from the
-  server's `lobbySnapshot` so a multiplayer race actually shows
-  the race in the broadcast on both clients.
+- Per-track elevation / kerbs / runoff (visually flat right now).
+- Interview replayability: interview system fires once per
+  triggering race, no follow-up chain.
 
 ## Remaining
 
@@ -139,34 +187,32 @@ Last updated: end of Phase 2 continuation run (2026-08-26).
   distinct for 1980 vs 2022) — eraFactor wiring is in place but
   the visual delta is subtle; a future pass should add distinct
   nose and wing silhouettes per era.
-- Per-track elevation / kerbs / runoff (visually flat right now).
-- Interview replayability: interview system fires once per
-  triggering race, no follow-up chain.
-- Hydrate local store from server lobby snapshot for true
-  cross-client multiplayer race viewing.
+- AI fill paddock for solo / local play could use more variety
+  (career personality archetypes).
 
 ## Known issues
 
-- The local "Next round" button needs an extra `commitLocalResults`
-  step to fully refresh; in the local-mode broadcast, the race is
-  fast-forwarded to completion when the button is pressed. This
-  is intentional — the broadcast view cannot let the player skip
-  the race without finishing the simulated package.
+- The local "Next round" button in local-mode broadcast
+  fast-forwards the simulation to completion to avoid getting
+  stuck on a long race the player can't skip. This is intentional
+  for the local-only path.
 - During HMR reload, the 3D view occasionally re-mounts before the
   engine is ready, leaving an empty canvas for ~100ms. Not visible
   in normal use.
-- When a player reloads a tab, the server issues a new playerId
-  and marks the previous player as `OFFLINE` in the lobby. This
-  is correct behaviour but visually surprising in the UI. A future
-  pass should map reconnecting tabs onto the same playerId.
+- Playwright MCP cannot open two separate browser contexts
+  (incognito) in the same server, so the in-tab UI two-client
+  verification shares the `mpSession` singleton. The
+  `tests/multiplayer-two-client.cjs` script uses two raw
+  WebSocket clients (one Playwright tab + one Node client) to
+  exercise the real cross-client path against the same server.
 
 ## Test count
 
-104/104 passing. TypeScript: clean. Production build: green.
+118/118 passing. TypeScript: clean. Production build: green.
+Two-client smoke test: PASS (shared championship ID, identical
+finishing order, identical standings, both clients advance to R2).
 
 ## Last QA
 
-Phase 2 continuation, 2026-08-26. Both multiplayer (2 browser tabs in
-Playwright) and single-player flows manually verified. Screenshots
-committed to `docs/testing/screenshots/phase2/`.
-
+Multiplayer P0 completion pass, 2026-08-27. Two-client verification
+screenshot set under `docs/testing/screenshots/multiplayer-p0/`.
