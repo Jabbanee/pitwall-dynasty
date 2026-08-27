@@ -5,7 +5,6 @@ import { renderMenu } from './menu'
 import { renderNewChampionship } from './new-championship'
 import { renderHQ } from './hq'
 import { renderStandings } from './standings'
-import { renderDrivers } from './drivers'
 import { renderStaff } from './staff'
 import { renderWeekend } from './weekend'
 import { renderBroadcast } from './broadcast'
@@ -17,9 +16,8 @@ import { renderLobby } from './lobby'
 import { renderDevelopment } from './development'
 import { renderFacilities } from './facilities'
 import { renderSponsors } from './sponsors'
+import { renderJuniorHub, renderWatchlist, renderAcademy, renderDriverMarket, renderSeriesDetail, renderDriverProfile } from './driver-ecosystem'
 import { renderMultiplayerHQ, renderMultiplayerResults, renderMultiplayerStandings, renderMultiplayerPaddock } from './multiplayer-views'
-import type { Team, DevelopmentProject, CarPerformance, PartStatModifiers } from '../core/types'
-void 0 as unknown as Team | DevelopmentProject | CarPerformance | PartStatModifiers
 
 const app = document.getElementById('app')!
 
@@ -28,6 +26,9 @@ const NAV_ITEMS: Array<{ hash: string; label: string }> = [
   { hash: '#/weekend', label: 'Race Weekend' },
   { hash: '#/standings', label: 'Standings' },
   { hash: '#/drivers', label: 'Drivers' },
+  { hash: '#/juniors', label: 'Juniors' },
+  { hash: '#/watchlist', label: 'Watchlist' },
+  { hash: '#/academy', label: 'Academy' },
   { hash: '#/staff', label: 'Staff' },
   { hash: '#/development', label: 'Development' },
   { hash: '#/facilities', label: 'Facilities' },
@@ -91,6 +92,16 @@ function route() {
   renderShell(app, hash)
   const root = pageRoot()
 
+  // Dynamic routes first so static switch catches what remains
+  if (hash.startsWith('#/series/')) {
+    const id = hash.slice('#/series/'.length) as import('../core/types').SeriesId
+    return renderSeriesDetail(root, id)
+  }
+  if (hash.startsWith('#/driver/')) {
+    const id = hash.slice('#/driver/'.length)
+    return renderDriverProfile(root, id)
+  }
+
   switch (hash) {
     case '#/hq': return renderHQ(root)
     case '#/weekend': return renderWeekend(root)
@@ -99,13 +110,18 @@ function route() {
     case '#/results': return renderResults(root)
     case '#/standings': return renderStandings(root)
     case '#/paddock': return renderPaddockPost(root)
-    case '#/drivers': return renderDrivers(root)
+    case '#/drivers': return renderDriverMarket(root, 'race')
+    case '#/drivers/free': return renderDriverMarket(root, 'free')
+    case '#/drivers/reserves': return renderDriverMarket(root, 'reserves')
     case '#/staff': return renderStaff(root)
     case '#/development': return renderDevelopment(root)
     case '#/facilities': return renderFacilities(root)
     case '#/finances': return renderFinances(root)
     case '#/sponsors': return renderSponsors(root)
     case '#/news': return renderNews(root)
+    case '#/juniors': return renderJuniorHub(root)
+    case '#/watchlist': return renderWatchlist(root)
+    case '#/academy': return renderAcademy(root)
     case '#/mods': case '#/settings': case '#/devtools': return renderDevTools(root)
     default:
       location.hash = '#/hq'

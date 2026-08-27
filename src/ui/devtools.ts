@@ -4,6 +4,9 @@ import { simulateRace } from '../sim/race-sim'
 import { CIRCUITS, DRIVERS, buildDefaultTeams } from '../core/content'
 import { finalizePackage } from '../championship/engine'
 import { validateMod, sampleMod, modHash } from '../content/modding'
+import { ensureFeeder, tickFeeder } from '../series/background'
+import { refreshAllEligibility } from '../series/eligibility'
+import { fundScoutingForOneWeek, ensureScouting, scoutDriver, getTopProspects } from '../series/scouting'
 import type { RacePackage } from '../core/types'
 
 /**
@@ -64,6 +67,111 @@ export function renderDevTools(root: HTMLElement) {
     ),
   )
 
+  // --- Driver Ecosystem (DEV) ---
+  const ecoOut = el('div', { class: 'card' },
+    el('div', { class: 'card-head' }, el('h3', {}, 'Driver Ecosystem — DEV')),
+    el('div', { class: 'card-body' },
+      el('p', { style: 'color:var(--text-2);font-size:12px;margin-bottom:8px' },
+        'All actions below modify the loaded championship. They are intended for visual QA, balance testing and stress-testing the career loop. Restricted to Dev Tools.'),
+      el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          ensureFeeder(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('Feeder series initialised.')
+        } }, 'Ensure feeder series'),
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          tickFeeder(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('One feeder round ticked.')
+        } }, 'Simulate 1 feeder round'),
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          ensureFeeder(store.champ)
+          for (let i = 0; i < 16; i++) tickFeeder(store.champ)
+          refreshAllEligibility(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('Simulated a full feeder season.')
+        } }, 'Simulate feeder season'),
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          for (let i = 0; i < 6; i++) fundScoutingForOneWeek(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('Funded 6 weeks of scouting.')
+        } }, 'Fund scouting ×6'),
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          ensureScouting(store.champ)
+          // Scout the first 5 free-agent drivers
+          const freeAgents = Object.values(store.champ.drivers)
+            .filter((d) => !d.contract && !d.reserveContract && !d.academyContract)
+            .slice(0, 5)
+          for (const d of freeAgents) scoutDriver(store.champ, d.id)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast(`Scouted ${freeAgents.length} free agents.`)
+        } }, 'Scout top free agents'),
+        el('button', { class: 'primary', onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          store.champ.womenSeriesEstablished = true
+          ensureFeeder(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('Aurora formation event triggered.')
+        } }, 'Trigger Aurora formation event'),
+        el('button', { onclick: () => {
+          if (!store.champ) return toast('No championship loaded.', true)
+          for (let i = 0; i < 3; i++) tickFeeder(store.champ)
+          store.champ.config.season++
+          ensureFeeder(store.champ)
+          refreshAllEligibility(store.champ)
+          store.save()
+          store.emit()
+          renderDevTools(root)
+          toast('Advanced feeder by one year.')
+        } }, 'Advance feeder by 1 year'),
+      ),
+      el('div', { id: 'dev-eco-summary', style: 'margin-top:10px;font-family:var(--font-mono);font-size:12px;line-height:1.7' }),
+    ),
+  )
+  // Populate summary after each render
+  setTimeout(() => {
+    const out = document.getElementById('dev-eco-summary')
+    if (!out || !store.champ) return
+    const f = store.champ.feeder ?? {}
+    const lines: string[] = []
+    const ids: Array<keyof typeof f | string> = ['base.junior.regional', 'base.junior.continental', 'base.junior.aurora']
+    for (const sid of ids) {
+      const st = (f as Record<string, { config: { name: string; establishedSeason: number }; currentSeason: number; currentRoundIndex: number; drivers: Record<string, { gender: string }> }>)[sid as string]
+      if (!st) { lines.push(`${sid}: not initialised (womenSeriesEstablished=${store.champ.womenSeriesEstablished})`); continue }
+      const drivers = Object.values(st.drivers)
+      const female = drivers.filter((d) => d.gender === 'female').length
+      const male = drivers.filter((d) => d.gender === 'male').length
+      const nonb = drivers.filter((d) => d.gender === 'nonbinary').length
+      lines.push(`${st.config.name.padEnd(22)} S${st.currentSeason} R${st.currentRoundIndex}/${st.config.establishedSeason} · drivers=${drivers.length} (M ${male} / F ${female} / NB ${nonb})`)
+    }
+    lines.push(`Scouting reports: ${Object.keys(store.champ.scouting?.reports ?? {}).length} · Watchlist: ${store.champ.scouting?.watchlist.length ?? 0}`)
+    const top = getTopProspects(store.champ, 5)
+    if (top.length) {
+      lines.push('Top prospects:')
+      for (const p of top) {
+        lines.push(`  - ${p.driver.lastName} (${p.driver.gender}) tier=${p.tier} conf=${(p.confidence * 100).toFixed(0)}%`)
+      }
+    }
+    out.innerHTML = lines.join('<br>')
+  }, 0)
+
   // --- Modding ---
   const mod = sampleMod()
   const modValidation = validateMod(mod)
@@ -86,7 +194,7 @@ export function renderDevTools(root: HTMLElement) {
     ),
   )
 
-  inner.append(batchOut, champCard, modCard)
+  inner.append(batchOut, champCard, ecoOut, modCard)
   page.appendChild(inner)
   root.appendChild(page)
 

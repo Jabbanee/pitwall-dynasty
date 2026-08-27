@@ -138,3 +138,23 @@ export function iconLock(s: number) {
 export function iconCalendar(s: number) {
   return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><rect x="4" y="6" width="16" height="14" rx="1.5"/><path d="M4 10h16M8 4v4M16 4v4"/></svg>`
 }
+
+export function iconSearch(s: number) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>`
+}
+
+export function iconStar(s: number) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><path d="M12 3l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 10l6-1z"/></svg>`
+}
+
+export function iconStarOutline(s: number) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><path d="M12 3l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 10l6-1zM12 5.5L10 9.5 5 10.3l4 3.5-.8 5.2 4.8-2.5 4.8 2.5-.8-5.2 4-3.5-5-.8z"/></svg>`
+}
+
+export function iconDocument(s: number) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3M9 12h6M9 16h6M9 8h3"/></svg>`
+}
+
+export function iconTrend(s: number) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" ${stroke}><path d="M3 17l5-5 4 4 9-9"/><path d="M14 7h7v7"/></svg>`
+}

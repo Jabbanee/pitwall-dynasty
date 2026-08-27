@@ -1084,3 +1084,130 @@ td.num, th.num { text-align: right; font-family: var(--font-mono); }
 .title-battle .leaderboard .row .pts { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--text-0); }
 .title-battle .gap-line { display: flex; align-items: center; gap: 10px; padding: 4px 0 0 30px; font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
 .title-battle .gap-line::before { content: ""; display: inline-block; width: 14px; height: 1px; background: var(--line-3); }
+
+
+/* ===========================================================
+ * Driver ecosystem — junior series, prospects, scouting
+ * =========================================================== */
+
+/* Junior Series hub (3-up grid of series cards) */
+.junior-hub { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.series-card {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-panel-0);
+  border: 1px solid var(--line-1);
+  border-top: 4px solid var(--series-color, var(--accent));
+  border-radius: var(--radius-4);
+  padding: 18px 20px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 200ms var(--ease-out);
+}
+.series-card:hover { transform: translateY(-2px); }
+.series-card .series-emblem { aspect-ratio: 200/80; }
+.series-card .series-name { font-family: var(--font-display); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-0); }
+.series-card .series-tier { font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--series-color); }
+.series-card .series-blurb { font-size: 12px; color: var(--text-1); line-height: 1.5; }
+.series-card .series-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+.series-card .series-stats .stat-cell { background: var(--bg-data-0); border: 1px solid var(--line-1); border-radius: var(--radius-3); padding: 8px 10px; }
+.series-card .series-stats .stat-cell .k { font-family: var(--font-display); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-3); }
+.series-card .series-stats .stat-cell .v { font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--text-0); }
+
+/* Series detail (standings + calendar + prospects) */
+.series-detail { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+.series-standings { display: flex; flex-direction: column; gap: 6px; }
+.series-standings .row { display: grid; grid-template-columns: 32px 1fr 50px 50px; gap: 10px; align-items: center; padding: 6px 8px; border-radius: var(--radius-2); }
+.series-standings .row.top { background: rgba(212, 160, 23, 0.06); border: 1px solid rgba(212, 160, 23, 0.3); }
+.series-standings .row .pos { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--text-1); text-align: center; }
+.series-standings .row .name { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+.series-standings .row .team { font-size: 11px; color: var(--text-3); }
+.series-standings .row .pts { font-family: var(--font-mono); font-weight: 700; font-size: 14px; text-align: right; }
+
+/* Prospect card (used in driver profile, watchlist, top prospects) */
+.prospect-card {
+  display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center;
+  background: var(--bg-panel-0); border: 1px solid var(--line-1);
+  border-left: 3px solid var(--team-color, var(--accent));
+  border-radius: var(--radius-4); padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.prospect-card .prospect-headshot { display: flex; align-items: center; justify-content: center; }
+.prospect-card .prospect-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prospect-card .prospect-info .name { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.prospect-card .prospect-info .meta { font-size: 11px; color: var(--text-3); display: flex; gap: 8px; }
+.prospect-card .prospect-tier { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.prospect-card .prospect-tier .tier { font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
+.prospect-card .prospect-tier .confidence { font-size: 10px; color: var(--text-3); }
+
+/* Driver profile hero */
+.driver-profile-hero {
+  display: grid; grid-template-columns: 120px 1fr; gap: 20px; align-items: center;
+  background: var(--bg-panel-0); border: 1px solid var(--line-1);
+  border-left: 3px solid var(--team-color, var(--accent));
+  border-radius: var(--radius-4); padding: 22px;
+  position: relative; overflow: hidden;
+}
+.driver-profile-hero .helmet { display: flex; align-items: center; justify-content: center; }
+.driver-profile-hero .name { font-family: var(--font-display); font-size: 32px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.driver-profile-hero .name .num { color: var(--text-3); margin-right: 8px; }
+.driver-profile-hero .meta { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.driver-profile-hero .meta .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--bg-data-0); border: 1px solid var(--line-2); margin-right: 6px; font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
+
+/* Scout report */
+.scout-report { display: flex; flex-direction: column; gap: 12px; background: var(--bg-panel-0); border: 1px solid var(--line-1); border-radius: var(--radius-4); padding: 18px 22px; }
+.scout-report .scout-head { display: flex; align-items: center; gap: 12px; }
+.scout-report .scout-head .helmet { display: flex; align-items: center; justify-content: center; }
+.scout-report .scout-head .name { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.scout-report .scout-head .meta { font-size: 12px; color: var(--text-3); }
+.scout-report .confidence-bar { display: flex; flex-direction: column; gap: 4px; }
+.scout-report .confidence-bar .label { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-3); }
+.scout-report .confidence-bar .bar { height: 6px; background: var(--bg-data-0); border-radius: 3px; overflow: hidden; }
+.scout-report .confidence-bar .fill { height: 100%; background: var(--accent-2); border-radius: 3px; transition: width 200ms var(--ease-out); }
+.scout-report .range-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.scout-report .range-row { display: grid; grid-template-columns: 90px 1fr 60px; gap: 10px; align-items: center; }
+.scout-report .range-row .lbl { font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-3); }
+.scout-report .range-row .track { height: 8px; background: var(--bg-data-0); border: 1px solid var(--line-1); border-radius: 4px; position: relative; }
+.scout-report .range-row .track .fill { position: absolute; top: 0; bottom: 0; background: var(--accent-2); opacity: 0.4; border-radius: 4px; }
+.scout-report .range-row .val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-align: right; }
+.scout-report .tier-row { display: flex; align-items: center; gap: 8px; }
+.scout-report .tier-row .tier { font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 12px; border-radius: 999px; background: var(--bg-data-0); border: 1px solid var(--accent-3); color: var(--accent-3); }
+
+/* Watchlist card */
+.watchlist-card {
+  display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center;
+  background: var(--bg-panel-0); border: 1px solid var(--line-1);
+  border-left: 3px solid var(--team-color, var(--accent));
+  border-radius: var(--radius-4); padding: 14px 16px;
+  position: relative; overflow: hidden;
+}
+.watchlist-card .actions { display: flex; gap: 6px; }
+
+/* Academy slot */
+.academy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.academy-slot {
+  background: var(--bg-panel-0); border: 1px solid var(--line-1);
+  border-radius: var(--radius-4); padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  position: relative; overflow: hidden;
+}
+.academy-slot.empty { border-style: dashed; opacity: 0.7; }
+.academy-slot .slot-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-3); }
+.academy-slot .slot-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.academy-slot .slot-meta { font-size: 11px; color: var(--text-2); }
+
+/* Contract offer */
+.contract-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+@media (max-width: 1000px) { .contract-grid { grid-template-columns: 1fr; } }
+.contract-card {
+  background: var(--bg-panel-0); border: 1px solid var(--line-1);
+  border-left: 3px solid var(--team-color, var(--accent));
+  border-radius: var(--radius-4); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.contract-card .contract-name { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.contract-card .acceptance { padding: 10px 14px; border-radius: var(--radius-3); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 6px; background: var(--bg-data-0); }
+.contract-card .acceptance .verdict { font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+.contract-card .acceptance .reasons { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-2); }
+.contract-card .acceptance .reasons .row { display: flex; gap: 6px; }
