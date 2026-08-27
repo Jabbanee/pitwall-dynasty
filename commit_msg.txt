@@ -1,0 +1,28 @@
+feat(weekend): full race-weekend event redesign + new CSS primitives
+
+- Rewrites src/ui/weekend.ts around the new design system:
+  * .event-header for the circuit + event subtitle + hero stats
+  * visual session timeline (Practice / Qualifying / Race) with
+    status pills and the active session pulsing
+  * visual stint bar that lays out stints proportionally to the
+    circuit's lap count
+  * weather forecast strip (NOW / +5m / +10m / +15m) with rain
+    probability and current-condition
+  * setup axis block showing car attributes vs circuit demands
+  * per-driver setup confidence with helmet and progress bar
+- Adds new CSS primitives to styles.css for the above: .hero-panel
+  reuse, .stint-bar, .stint-legend, .weather-strip, .setup-axis,
+  .driver-agency bars and concerns, .session-row pulse animation,
+  .rulesBlock-style toggleable rule chips.
+- Adds new icon module symbols (iconFrontWing, iconRearWing,
+  iconNose, iconFloor, iconSidepods, iconCooling, iconSuspension,
+  iconHeart, iconFist, iconLock, iconCalendar) to icons.ts.
+- Adds src/ui/renderers.ts with reusable helpers: renderHelmet,
+  renderTeamMark, renderDriverIdentity, renderKpiTile,
+  renderEventHeader, renderEmptyState, renderTeamBar,
+  renderBadge.
+- All existing state wiring (work.strategy, work.setup, practice)
+  preserved; the existing Quick Start → HQ → Race Weekend →
+  Practice → Qualifying → Race flow still works.
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
