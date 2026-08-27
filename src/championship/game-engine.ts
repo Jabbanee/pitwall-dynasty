@@ -165,6 +165,26 @@ export class GameEngine {
     ]
     for (const n of news) addNews(this.champ, 'DEVELOPMENT', n)
 
+    // Tick the driver-ecosystem feeder series. Only in Career mode.
+    // Feeder is loaded lazily so the multiplayer server bundle stays
+    // independent. The dynamic import resolves to the same module
+    // instance and is wrapped in try/catch for safety in minimal
+    // installations.
+    if (this.champ.mode === 'career') {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const bg = require('../series/background') as typeof import('../series/background')
+        const el = require('../series/eligibility') as typeof import('../series/eligibility')
+        bg.ensureFeeder(this.champ)
+        const feederNews = bg.tickFeeder(this.champ)
+        for (const n of feederNews) addNews(this.champ, 'JUNIOR', n)
+        el.refreshAllEligibility(this.champ)
+      } catch (err) {
+        // Feeder module may be absent in minimal installations; ignore.
+        void err
+      }
+    }
+
     // Driver form/morale drift based on last result
     updateDriverDynamics(this.champ)
 

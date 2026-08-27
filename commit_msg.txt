@@ -1,33 +1,34 @@
-feat(drivers): add gender field, expanded history, eligibility and contracts
+feat(series): add junior feeder pyramid, scouting, academy and licence eligibility
 
-- src/core/types.ts: add DriverGender; extend Driver with gender,
-  expanded DriverSeasonRecord (seriesId, starts, podiums, poles,
-  fastestLaps, championshipPosition), optional reserveContract
-  and academyContract, persistent eligibility (SeriesLicence),
-  scouted (ScoutReport). Add SeriesId, SeriesTier, SeriesConfig,
-  JuniorTeam (=Team alias), SeriesSeasonHistory, SeriesState,
-  ReserveContract, AcademyContract, PotentialTier, ScoutReport,
-  WatchEntry. Add feeder, scouting, womenSeriesEstablished to
-  Championship.
-- src/core/content.ts: 24 base drivers backfilled with gender
-  'male'; add NAME_POOLS for male/female/nonbinary; generateRookie
-  is now gender-aware in name only — skill / potential pipeline is
-  identical. Backfill eligibility on makeDriver.
-- src/championship/create.ts: stamp womenSeriesEstablished in new
-  championships. Defaults to true for Career 2014+ eras, false for
-  Fast/older Career.
-- src/championship/engine.ts: backfill gender and eligibility on
-  the local deterministic rookie generator.
-- src/championship/game-engine.ts: backfill new fields on every
-  per-round history.push entry (seriesId='base.championship.wgp',
-  starts/podiums/fastestLaps).
-- src/drivers/agency.ts, src/content/modding.ts: backfill gender
-  and eligibility on the dummy driver and on the example mod
-  driver.
-- src/server/multiplayer-server.ts: stamp womenSeriesEstablished:
-  false on every new multiplayer championship (multiplayer remains
-  the top-championship-only model).
-- tests/agency-demands.test.ts, tests/commentary-display.test.ts:
-  backfill gender + eligibility in the existing fixtures.
+- src/series/types.ts: declare the new feeder series types.
+  (All series types live in src/core/types.ts as before; this
+  file re-exports nothing — actual types are pulled from
+  core/types.)
+- src/series/catalog.ts: three fictional feeder series
+  (Regional Formula, Continental Formula, Aurora Formula) with
+  emblem SVGs, calendar, fictional junior team names, and a
+  balanced rookie name pool. The talent generator is GENDER-
+  NEUTRAL — name pool is the only place gender matters.
+- src/series/feederSim.ts: deterministic lightweight feeder race
+  simulation, junior standings, season-end promotion/relegation,
+  licence point accounting. NO 3D rendering, NO heavy pipeline —
+  this is the path that runs on every top-championship round tick.
+- src/series/background.ts: per-round feeder tick and idempotent
+  feeder initialiser that respects Real Career historical gating
+  (Aurora is only established from era >= 2014).
+- src/series/scouting.ts: scouting engine with confidence-
+  narrowed visible bands, tier label, watchlist, top-prospects
+  list. The hidden potential is NEVER shown numerically.
+- src/series/contract.ts: gender-neutral academy and reserve
+  offer verdicts; promote-to-race-seat and academy-to-reserve
+  flows. Contract verdicts use only confidence / potential / offer
+  shape — no gender branch.
+- src/series/eligibility.ts: pure-function licence-point
+  calculation; pulls from every feeder series history; award
+  points only from results, never from demographics.
+- src/championship/game-engine.ts: tick feeder + refresh
+  eligibility inside `advanceRound`, gated by `mode === 'career'`
+  and wrapped in try/catch. Lazy require keeps the multiplayer
+  server bundle independent.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
