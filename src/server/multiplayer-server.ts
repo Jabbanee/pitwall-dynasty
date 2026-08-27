@@ -88,6 +88,8 @@ export class MultiplayerLobby {
   players: LobbyPlayer[] = []
   config: LobbyConfig = structuredClone(DEFAULT_LOBBY_CONFIG)
   phase: ServerPhase = 'lobby'
+  /** Teams available for selection in the lobby phase. */
+  availableTeams: Array<{ teamId: string; name: string; shortName: string; colors: { primary: string; secondary: string } }> = []
   /** Championship-scoped state — completely isolated per lobby. */
   championship!: Championship
   agency = new DriverAgencyStore()
@@ -116,6 +118,13 @@ export class MultiplayerLobby {
   constructor(public hostPlayerId: string) {
     lobbyCounter++
     this.code = codeFromSeed(lobbyCounter * 7919 + Date.now())
+    // The list of teams available for selection is the default roster,
+    // sliced to the configured teamCount. It's the same set the
+    // championship is built from, so the client's team picker is
+    // consistent with the eventual championship.
+    this.availableTeams = buildDefaultTeams().slice(0, DEFAULT_LOBBY_CONFIG.teamCount).map((t) => ({
+      teamId: t.id, name: t.name, shortName: t.shortName, colors: t.colors,
+    }))
   }
 
   // ----- Lobby management -----

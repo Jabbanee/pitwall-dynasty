@@ -60,7 +60,7 @@ function lobbySnapshot(lobby: MultiplayerLobby, viewerPlayerId?: string) {
           ownerPlayerId: lobby.teamStates.get(t.id)?.ownerPlayerId,
           ready: lobby.teamStates.get(t.id)?.ready ?? false,
         }))
-      : [],
+      : lobby.availableTeams,
     hostPlayerId: lobby.hostPlayerId,
     managementDeadline: lobby.managementDeadline,
     allReady: lobby.allReady(),
@@ -74,6 +74,7 @@ function championshipSummary(lobby: MultiplayerLobby) {
   if (!champ) return null
   const round = champ.rounds[champ.currentRoundIndex]
   return {
+    id: champ.id,
     name: champ.name,
     config: champ.config,
     currentRoundIndex: champ.currentRoundIndex,
@@ -406,6 +407,7 @@ setInterval(() => {
       void before
       if (res.finished) {
         broadcast(lobby, 'raceComplete', (c) => raceSnapshot(lobby, c.playerId))
+        broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       }
     }
   }

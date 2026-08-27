@@ -79,7 +79,7 @@ export function renderMultiplayerHQ(root: HTMLElement) {
         el('div', { style: 'color:var(--text-2);font-size:12px' }, 'Update your strategy and ready up.'),
       ),
       el('div', { class: 'spacer' }),
-      el('button', { class: 'primary', onclick: () => (location.hash = '#/weekend') }, 'Race Weekend →'),
+      el('button', { class: 'primary', onclick: () => mpSession.readyTeam(true) }, 'Ready (lock when all ready)'),
     ))
   }
 

@@ -162,6 +162,13 @@ export class MultiplayerSession {
           if ((ev.payload as RaceSnapshot).championship) {
             this.view.championship = (ev.payload as RaceSnapshot).championship ?? null
           }
+          // Race complete means the lobby phase has advanced to
+          // roundResults — reflect that locally so the next-round
+          // button can dispatch its message correctly even before
+          // the next lobbyState broadcast arrives.
+          if (this.view.lobby) {
+            this.view.lobby = { ...this.view.lobby, phase: 'roundResults' }
+          }
           this.apply()
           break
         }
@@ -209,6 +216,19 @@ export class MultiplayerSession {
   setName(name: string) {
     this.view.playerName = name.slice(0, 24)
     saveName(this.view.playerName)
+    this.client.setName(this.view.playerName)
+    this.apply()
+  }
+
+  /** Open the WebSocket without joining — used by the lobby screen
+   *  in 'join' mode so the user can type a code. */
+  async openConnection(): Promise<void> {
+    if (this.client.connected) return
+    this.view.connection = 'connecting'
+    this.view.error = null
+    this.apply()
+    await this.client.connect('ws://localhost:8080')
+    this.view.connection = 'connected'
     this.client.setName(this.view.playerName)
     this.apply()
   }
@@ -291,9 +311,26 @@ export class MultiplayerSession {
   vote(kind: string, payload: number) { this.client.vote(kind, payload) }
   castVote(support: boolean) { this.client.castVote(support) }
   resumeLive() { this.client.resumeLive() }
-  nextRound() { this.client.nextRound() }
+  nextRound() {
+    this.client.nextRound()
+    // Optimistically advance the local lobby phase so the UI
+    // reflects the server's transition immediately.
+    if (this.view.lobby) {
+      this.view.lobby = { ...this.view.lobby, currentRoundIndex: this.view.lobby.currentRoundIndex + 1, phase: 'management', allReady: false }
+    }
+    this.apply()
+    // Ask the server for the latest snapshot so the broadcast
+    // and HQ catch up even if no lobbyState broadcast is in flight.
+    setTimeout(() => this.client.requestRaceState(), 50)
+  }
 }
 
 /** Process-wide singleton so the lobby, broadcast, and HQ all share the
- *  same session. Survives in-tab navigation. */
+ *  same session. Survives in-tab navigation.
+ *
+ *  In a single-page test harness, two tabs share the same singleton —
+ *  which is fine because in production each browser tab is a separate
+ *  process and gets its own instance. The QA two-client test in
+ *  `tests/multiplayer-two-client.cjs` runs two raw WebSocket clients
+ *  against the same server to verify cross-client identity. */
 export const mpSession = new MultiplayerSession()
