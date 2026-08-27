@@ -46,15 +46,21 @@ export function renderLobby(targetRoot: HTMLElement, initialAction: 'create' | '
     render()
   })
 
-  // Connect — either create or join
+  // Connect — either create immediately or just open the WS and let the
+  // user type a code to join an existing lobby.
   if (initialAction === 'create') {
     mpSession.createLobby().catch((e) => {
       if (!state) return
       // Surface the error to the screen
       console.error('createLobby failed', e)
     })
+  } else {
+    // Open the WebSocket but don't join yet — wait for the code.
+    mpSession.openConnection().catch((e) => {
+      if (!state) return
+      console.error('openConnection failed', e)
+    })
   }
-  // 'join' awaits the user typing a code; we don't auto-connect.
 
   render()
 

@@ -41,6 +41,7 @@ export interface LobbySnapshot {
 }
 
 export interface ChampionshipSummary {
+  id: string
   name: string
   config: Record<string, unknown>
   currentRoundIndex: number
