@@ -4,3 +4,8 @@ coverage
 _Bak
 *.log
 .playwright-mcp
+commit_msg.txt
+scripts/append-css.cjs
+scripts/temp-*
+.tmp
+.temp

@@ -257,5 +257,30 @@ src/
   state/      store + persistence
   ui/         vanilla-TS screens (menu, HQ, weekend, broadcast, results…)
 tests/        Vitest: determinism, classification, standings, economy,
-              save/load, mod validation, timeline consistency
+              save/load, mod validation, timeline consistency,
+              driver ecosystem (gender-neutral talent, feeder mechanics,
+              scouting, contracts, 12-season stress test)
 ```
+
+## Driver ecosystem (Career)
+
+Local Career includes a full driver pipeline:
+
+- Three fictional feeder championships: Regional Formula,
+  Continental Formula, Aurora Formula
+- Aurora is the dedicated women's development series — fictional,
+  fictional emblems, fictional circuits. Aurora is **not** a
+  lower-talent tier: gender is identity/context only and never
+  affects driving ability, potential, development, or AI valuation.
+- Scouting engine, watchlist, Driver Academy, reserve role, Elite
+  Racing Licence — all wired into the same driver pool and the same
+  agency / promises infrastructure the top championship already uses
+- Save schema version bumped to 3 with a deterministic migration
+  for legacy saves (gender default, licence state, feeder state,
+  womenSeriesEstablished)
+
+See `docs/DRIVER_ECOSYSTEM.md` for the full design and
+`docs/PROJECT_STATUS.md` for the implementation status.
+
+**145/145** vitest tests pass. TypeScript is clean. Production build
+is green. The two-client multiplayer smoke test passes.
