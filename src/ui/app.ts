@@ -11,6 +11,7 @@ import { renderResults } from './results'
 import { renderPaddockPost } from './paddock-post'
 import { renderDevTools } from './devtools'
 import { renderLobby } from './lobby'
+import { renderMultiplayerHQ, renderMultiplayerResults, renderMultiplayerStandings, renderMultiplayerPaddock } from './multiplayer-views'
 import { startDevelopment, startFacilityUpgrade } from '../championship/engine'
 import { SPONSORS } from '../core/content'
 import type { Team, DevelopmentProject, CarPerformance, PartStatModifiers } from '../core/types'
@@ -58,6 +59,22 @@ function route() {
     const action = hash.includes('join') ? 'join' : 'create'
     renderLobby(root, action)
     return
+  }
+
+  // Multiplayer broadcast / results / standings routes — when a multiplayer
+  // session is active, the local `store.champ` MUST NOT be required. The
+  // 3D broadcast and results screens read everything from `store.multi`.
+  if (store.multi.active && (hash === '#/broadcast' || hash === '#/broadcast2d' || hash === '#/results' || hash === '#/standings' || hash === '#/paddock' || hash === '#/hq')) {
+    renderShell(app, hash)
+    const root = pageRoot()
+    switch (hash) {
+      case '#/hq': return renderMultiplayerHQ(root)
+      case '#/broadcast': return renderBroadcast3D(root)
+      case '#/broadcast2d': return renderBroadcast(root)
+      case '#/results': return renderMultiplayerResults(root)
+      case '#/standings': return renderMultiplayerStandings(root)
+      case '#/paddock': return renderMultiplayerPaddock(root)
+    }
   }
 
   // Championship screens require loaded state

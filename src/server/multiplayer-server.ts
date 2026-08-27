@@ -14,6 +14,8 @@ import type { Championship, RacePackage, SetupChoice, StrategyPlaybook, Team } f
 
 export interface LobbyPlayer {
   playerId: string
+  /** Opaque reconnect token. Issued by the server, required for restore. */
+  sessionToken: string
   name: string
   teamId?: string
   connected: boolean
@@ -68,6 +70,18 @@ export const DEFAULT_LOBBY_CONFIG: LobbyConfig = {
 
 let lobbyCounter = 0
 
+function newSessionToken(): string {
+  // 24 chars base32 — high entropy, opaque to clients
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+  let s = (Math.random() * 0xffffffff) >>> 0
+  let out = ''
+  for (let i = 0; i < 24; i++) {
+    s = (s * 1103515245 + 12345) >>> 0
+    out += chars[(s >>> 16) % chars.length]
+  }
+  return out
+}
+
 export class MultiplayerLobby {
   readonly code: string
   readonly createdAt = Date.now()
@@ -91,6 +105,12 @@ export class MultiplayerLobby {
   /** Per-team pending live commands queued while replaying. */
   private pendingCommands: Array<Omit<LiveCommand, 't' | 'applied' | 'note'>> = []
   roundQualifyingDone = false
+  /** Completed-round results, kept across rounds for standings accumulation. */
+  completedRounds: Array<{
+    roundIndex: number
+    results: ReturnType<LiveRaceEngine['results']>
+  }> = []
+  /** Convenience for the in-progress round (set when the race finishes). */
   roundResults?: ReturnType<LiveRaceEngine['results']>
 
   constructor(public hostPlayerId: string) {
@@ -100,18 +120,34 @@ export class MultiplayerLobby {
 
   // ----- Lobby management -----
 
-  join(playerId: string, name: string): { ok: boolean; error?: string } {
+  /** First-time join. Issues a sessionToken the client must keep. */
+  join(playerId: string, name: string): { ok: boolean; error?: string; sessionToken?: string } {
     const existing = this.players.find((p) => p.playerId === playerId)
     if (existing) {
-      // Reconnect is allowed in any phase
+      // Reconnect is allowed in any phase (re-auth via sessionToken handled by restore())
       existing.connected = true
       existing.name = name
-      return { ok: true }
+      return { ok: true, sessionToken: existing.sessionToken }
     }
     if (this.phase !== 'lobby') return { ok: false, error: 'Championship already started.' }
     if (this.players.length >= this.config.teamCount) return { ok: false, error: 'Lobby is full.' }
-    this.players.push({ playerId, name, connected: true, ready: false })
-    return { ok: true }
+    const sessionToken = newSessionToken()
+    this.players.push({ playerId, sessionToken, name, connected: true, ready: false })
+    return { ok: true, sessionToken }
+  }
+
+  /**
+   * Re-authenticate an existing player by sessionToken. The sessionToken
+   * is the durable identity that survives a tab reload.
+   */
+  restoreByToken(sessionToken: string): { ok: boolean; error?: string; realPlayerId?: string } {
+    const owner = this.players.find((p) => p.sessionToken === sessionToken)
+    if (!owner) return { ok: false, error: 'Session token not recognised.' }
+    // Reconnect: bring the player back, mark them connected, and tell the
+    // caller to swap their `playerId` for `owner.playerId` (so the rest of
+    // the protocol uses the durable id).
+    owner.connected = true
+    return { ok: true, realPlayerId: owner.playerId }
   }
 
   disconnect(playerId: string) {
@@ -487,10 +523,19 @@ export class MultiplayerLobby {
     round.phase = 'roundResults'
     this.phase = 'roundResults'
     this.replayActive = false
+    // Persist the completed round for standings accumulation across rounds.
+    this.completedRounds.push({
+      roundIndex: round.index,
+      results: this.roundResults,
+    })
   }
 
   /** Advance to the next round (or complete the season). */
   nextRound(): 'nextRound' | 'seasonComplete' {
+    if (this.phase !== 'roundResults' && this.phase !== 'seasonComplete') {
+      throw new Error('nextRound called outside roundResults phase')
+    }
+    if (this.phase === 'seasonComplete') return 'seasonComplete'
     this.agency.tickRound()
     if (this.championship.currentRoundIndex + 1 >= this.championship.rounds.length) {
       this.phase = 'seasonComplete'
@@ -498,23 +543,17 @@ export class MultiplayerLobby {
       return 'seasonComplete'
     }
     this.championship.currentRoundIndex++
+    this.roundResults = undefined
     this.beginManagement()
     return 'nextRound'
   }
 
-  /** Standings from completed rounds. */
+  /** Standings from all completed rounds (authoritative, accumulated). */
   standings(): { driverRows: Array<{ driverId: string; points: number }>; teamRows: Array<{ teamId: string; points: number }> } {
     const driverPoints = new Map<string, number>()
     const teamPoints = new Map<string, number>()
-    for (const round of this.championship.rounds) {
-      if (!round.raceDone) continue
-      // Results are stored on the lobby for the live race; historical rounds
-      // would be persisted in round.raceResult — for live races we keep the
-      // latest here and accumulate from engine results.
-      void round
-    }
-    if (this.roundResults) {
-      for (const r of this.roundResults) {
+    for (const cr of this.completedRounds) {
+      for (const r of cr.results) {
         if (!r.classified) continue
         driverPoints.set(r.driverId, (driverPoints.get(r.driverId) ?? 0) + r.points)
         teamPoints.set(r.teamId, (teamPoints.get(r.teamId) ?? 0) + r.points)

@@ -25,20 +25,34 @@ function send(conn: ClientConn, type: string, payload: unknown = {}) {
   }
 }
 
-function broadcast(lobby: MultiplayerLobby, type: string, payload: unknown = {}) {
+function broadcast(lobby: MultiplayerLobby, type: string, buildOrPayload?: ((viewer: ClientConn) => unknown) | object) {
   for (const conn of clients) {
-    if (conn.lobbyCode === lobby.code) send(conn, type, payload)
+    if (conn.lobbyCode === lobby.code) {
+      const payload = typeof buildOrPayload === 'function' ? buildOrPayload(conn) : (buildOrPayload ?? {})
+      send(conn, type, payload)
+    }
   }
 }
 
-/** Full lobby state snapshot for clients. */
-function lobbySnapshot(lobby: MultiplayerLobby) {
+/** Full lobby state snapshot for clients. `viewerPlayerId` is used to
+ *  surface that player's sessionToken (and only theirs) for reconnect. */
+function lobbySnapshot(lobby: MultiplayerLobby, viewerPlayerId?: string) {
   return {
     code: lobby.code,
     phase: lobby.phase,
     config: lobby.config,
+    totalRounds: lobby.championship?.rounds.length ?? lobby.config.rounds,
+    currentRoundIndex: lobby.championship?.currentRoundIndex ?? 0,
     players: lobby.players.map((p) => ({
-      playerId: p.playerId, name: p.name, teamId: p.teamId, connected: p.connected, ready: p.ready,
+      playerId: p.playerId,
+      name: p.name,
+      teamId: p.teamId,
+      connected: p.connected,
+      ready: p.ready,
+      // Session token is only ever included for the viewer. Clients never
+      // see another player's token. This is the durable identity used to
+      // restore a connection after a tab reload.
+      sessionToken: p.playerId === viewerPlayerId ? p.sessionToken : undefined,
     })),
     teams: lobby.championship
       ? lobby.championship.teams.map((t) => ({
@@ -48,15 +62,52 @@ function lobbySnapshot(lobby: MultiplayerLobby) {
         }))
       : [],
     hostPlayerId: lobby.hostPlayerId,
-    currentRoundIndex: lobby.championship?.currentRoundIndex ?? 0,
     managementDeadline: lobby.managementDeadline,
     allReady: lobby.allReady(),
+  }
+}
+
+/** Compact championship summary so the client can render HQ / results /
+ *  standings without simulating locally. */
+function championshipSummary(lobby: MultiplayerLobby) {
+  const champ = lobby.championship
+  if (!champ) return null
+  const round = champ.rounds[champ.currentRoundIndex]
+  return {
+    name: champ.name,
+    config: champ.config,
+    currentRoundIndex: champ.currentRoundIndex,
+    totalRounds: champ.rounds.length,
+    circuit: round ? {
+      id: round.circuitId,
+      name: lobby.championship!.circuits.find((c) => c.id === round.circuitId)?.name ?? round.circuitId,
+      country: lobby.championship!.circuits.find((c) => c.id === round.circuitId)?.country ?? '',
+      laps: lobby.championship!.circuits.find((c) => c.id === round.circuitId)?.characteristics.laps ?? 0,
+    } : null,
+    teams: champ.teams.map((t) => ({
+      id: t.id, name: t.name, shortName: t.shortName, colors: t.colors,
+      reputation: t.reputation, money: t.money,
+      driverIds: t.driverIds,
+      isPlayerControlled: t.isPlayerControlled,
+    })),
+    drivers: Object.fromEntries(
+      Object.entries(champ.drivers).map(([id, d]) => [
+        id,
+        {
+          id, firstName: d.firstName, lastName: d.lastName,
+          nationality: d.nationality,
+          dynamic: { morale: d.dynamic.morale, confidence: d.dynamic.confidence, form: d.dynamic.form },
+        },
+      ]),
+    ),
   }
 }
 
 function raceSnapshot(lobby: MultiplayerLobby, viewerPlayerId: string) {
   const engine = lobby.liveEngine
   const myTeam = lobby.teamStateOf(viewerPlayerId)
+  const leader = engine?.orderedCars()[0]
+  const champ = lobby.championship
   return {
     phase: lobby.phase,
     cursorSeconds: lobby.cursorSeconds,
@@ -69,12 +120,19 @@ function raceSnapshot(lobby: MultiplayerLobby, viewerPlayerId: string) {
       expiresAt: lobby.activeVote.expiresAt,
     } : null,
     myTeamId: myTeam?.teamId,
+    myPlayerId: viewerPlayerId,
     // Reveal-safe: only events at/below the cursor
     events: engine ? engine.events.filter((e) => e.t <= lobby.cursorSeconds + 3) : [],
     radio: engine ? engine.radioFeed.slice(-12) : [],
     cars: engine ? engine.orderedCars().map((c) => ({
       driverId: c.driverId, teamId: c.teamId, carNumber: c.carNumber, position: c.position,
-      lap: c.lapsDone, gapSeconds: c.totalTime - (engine.orderedCars()[0]?.totalTime ?? c.totalTime),
+      lap: c.lapsDone,
+      // Track progress in 0..1 — derived from totalTime and the leader's
+      // best lap so the client can place the car on the track even before
+      // it crosses the start/finish line. (We expose this as a deterministic
+      // function of totalTime, NOT future pre-computed positions.)
+      trackProgress: c.totalTime,
+      gapSeconds: c.totalTime - (leader?.totalTime ?? c.totalTime),
       tyre: c.tyre, tyreAge: c.tyreAge, tyreWear: Math.round(c.tyreWear * 100) / 100,
       pitStops: c.pitStops, paceMode: c.strategy.paceMode, energy: c.strategy.energy,
       damage: Math.round(c.damage * 100) / 100,
@@ -88,6 +146,14 @@ function raceSnapshot(lobby: MultiplayerLobby, viewerPlayerId: string) {
     condition: engine?.state.condition ?? 'dry',
     results: lobby.roundResults,
     standings: lobby.phase === 'roundResults' || lobby.phase === 'seasonComplete' ? lobby.standings() : undefined,
+    // Pre-race metadata so the client can render the paddock post
+    // / results screen without re-running qualifying locally.
+    qualifyingGrid: champ
+      ? champ.rounds[champ.currentRoundIndex]?.qualifyingResult?.rows.map((r) => ({
+          driverId: r.driverId, gridPosition: r.gridPosition, lapTime: r.lapTime,
+        })) ?? null
+      : null,
+    championship: championshipSummary(lobby),
   }
 }
 
@@ -114,7 +180,7 @@ wss.on('connection', (ws) => {
     const lobby = conn.lobbyCode ? lobbies.get(conn.lobbyCode) : undefined
     if (lobby) {
       lobby.disconnect(conn.playerId)
-      broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+      broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
     }
   })
 })
@@ -133,9 +199,9 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (p.config) host.config = { ...DEFAULT_LOBBY_CONFIG, ...(p.config as Partial<LobbyConfig>) }
       lobbies.set(host.code, host)
       conn.lobbyCode = host.code
-      host.join(conn.playerId, conn.name)
-      send(conn, 'joined', { code: host.code, playerId: conn.playerId })
-      broadcast(host, 'lobbyState', lobbySnapshot(host))
+      const res = host.join(conn.playerId, conn.name)
+      send(conn, 'joined', { code: host.code, playerId: conn.playerId, sessionToken: res.sessionToken })
+      broadcast(host, 'lobbyState', lobbySnapshot(host, conn.playerId))
       break
     }
 
@@ -146,7 +212,33 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       const res = target.join(conn.playerId, conn.name)
       if (!res.ok) { send(conn, 'error', { message: res.error }); break }
       conn.lobbyCode = target.code
-      send(conn, 'joined', { code: target.code, playerId: conn.playerId })
+      send(conn, 'joined', { code: target.code, playerId: conn.playerId, sessionToken: res.sessionToken })
+      broadcast(target, 'lobbyState', lobbySnapshot(target, conn.playerId))
+      break
+    }
+
+    case 'restoreSession': {
+      // Client reconnects with its durable sessionToken + lobby code.
+      const code = String(p.code ?? '').toUpperCase()
+      const token = String(p.sessionToken ?? '')
+      const target = lobbies.get(code)
+      if (!target) { send(conn, 'error', { message: 'Lobby no longer exists.' }); break }
+      const res = target.restoreByToken(token)
+      if (!res.ok || !res.realPlayerId) { send(conn, 'error', { message: res.error ?? 'Restore failed.' }); break }
+      // Swap our connection-local handle for the durable playerId so the
+      // rest of the protocol uses the right identity.
+      conn.playerId = res.realPlayerId
+      conn.lobbyCode = code
+      const owner = target.players.find((p) => p.playerId === res.realPlayerId)
+      send(conn, 'joined', { code, playerId: res.realPlayerId, sessionToken: token, name: owner?.name })
+      // Send the latest authoritative snapshot (lobby + race) so the
+      // reconnecting client immediately has the same view as everyone else.
+      send(conn, 'lobbyState', lobbySnapshot(target, res.realPlayerId))
+      if (target.phase === 'race' || target.phase === 'qualifying' || target.phase === 'roundResults' || target.phase === 'seasonComplete') {
+        send(conn, 'raceState', raceSnapshot(target, res.realPlayerId))
+      } else {
+        send(conn, 'phaseChange', { phase: target.phase, snapshot: lobbySnapshot(target, res.realPlayerId), championship: championshipSummary(target) })
+      }
       broadcast(target, 'lobbyState', lobbySnapshot(target))
       break
     }
@@ -155,13 +247,13 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (lobby) {
         lobby.disconnect(conn.playerId)
         conn.lobbyCode = undefined
-        broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+        broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       }
       break
     }
 
     case 'lobbyState': {
-      if (lobby) send(conn, 'lobbyState', lobbySnapshot(lobby))
+      if (lobby) send(conn, 'lobbyState', lobbySnapshot(lobby, conn.playerId))
       break
     }
 
@@ -169,7 +261,7 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (!lobby) break
       const res = lobby.updateConfig(conn.playerId, p.config as Partial<LobbyConfig>)
       if (!res.ok) send(conn, 'error', { message: res.error })
-      else broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+      else broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       break
     }
 
@@ -177,14 +269,14 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (!lobby) break
       const res = lobby.selectTeam(conn.playerId, String(p.teamId))
       if (!res.ok) send(conn, 'error', { message: res.error })
-      broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+      broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       break
     }
 
     case 'setReady': {
       if (!lobby) break
       lobby.setReady(conn.playerId, Boolean(p.ready))
-      broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+      broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       break
     }
 
@@ -192,7 +284,11 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (!lobby) break
       const res = lobby.start(conn.playerId)
       if (!res.ok) { send(conn, 'error', { message: res.error }); break }
-      broadcast(lobby, 'phaseChange', { phase: lobby.phase, snapshot: lobbySnapshot(lobby) })
+      broadcast(lobby, 'phaseChange', (c) => ({
+        phase: lobby.phase,
+        snapshot: lobbySnapshot(lobby, c.playerId),
+        championship: championshipSummary(lobby),
+      }))
       break
     }
 
@@ -207,18 +303,26 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       if (!lobby) break
       const res = lobby.readyTeam(conn.playerId, Boolean(p.ready))
       if (!res.ok) send(conn, 'error', { message: res.error })
-      broadcast(lobby, 'lobbyState', lobbySnapshot(lobby))
+      broadcast(lobby, 'lobbyState', (c) => lobbySnapshot(lobby, c.playerId))
       // Auto-lock when everyone is ready
       if (lobby.allReady()) {
         lobby.lockAndQualify()
-        broadcast(lobby, 'raceStart', raceSnapshot(lobby, conn.playerId))
+        broadcast(lobby, 'raceStart', (c) => raceSnapshot(lobby, c.playerId))
       }
       break
     }
 
     case 'requestRaceState': {
-      if (lobby && lobby.phase === 'race') send(conn, 'raceState', raceSnapshot(lobby, conn.playerId))
-      else if (lobby) send(conn, 'phaseChange', { phase: lobby.phase, snapshot: lobbySnapshot(lobby) })
+      if (!lobby) break
+      if (lobby.phase === 'race' || lobby.phase === 'roundResults' || lobby.phase === 'seasonComplete') {
+        send(conn, 'raceState', raceSnapshot(lobby, conn.playerId))
+      } else {
+        send(conn, 'phaseChange', {
+          phase: lobby.phase,
+          snapshot: lobbySnapshot(lobby, conn.playerId),
+          championship: championshipSummary(lobby),
+        })
+      }
       break
     }
 
@@ -258,7 +362,12 @@ function handle(conn: ClientConn, type: string, p: Record<string, unknown>) {
       // Host or anyone after results — server decides validity
       if (lobby.phase === 'roundResults') {
         const outcome = lobby.nextRound()
-        broadcast(lobby, 'phaseChange', { phase: lobby.phase, outcome, snapshot: lobbySnapshot(lobby) })
+        broadcast(lobby, 'phaseChange', (c) => ({
+          phase: lobby.phase,
+          outcome,
+          snapshot: lobbySnapshot(lobby, c.playerId),
+          championship: championshipSummary(lobby),
+        }))
       }
       break
     }
@@ -286,17 +395,17 @@ setInterval(() => {
     if (lobby.phase === 'management') {
       if (lobby.managementExpired()) {
         lobby.lockAndQualify()
-        broadcast(lobby, 'raceStart', raceSnapshot(lobby, lobby.hostPlayerId))
+        broadcast(lobby, 'raceStart', (c) => raceSnapshot(lobby, c.playerId))
       }
     } else if (lobby.phase === 'race') {
       const before = lobby.liveEngine?.state.simTime ?? 0
       const res = lobby.tick(dt)
       if (res.lapEvents > 0 || lobby.liveEngine?.isFinished()) {
-        broadcast(lobby, 'raceState', raceSnapshot(lobby, lobby.hostPlayerId))
+        broadcast(lobby, 'raceState', (c) => raceSnapshot(lobby, c.playerId))
       }
       void before
       if (res.finished) {
-        broadcast(lobby, 'raceComplete', raceSnapshot(lobby, lobby.hostPlayerId))
+        broadcast(lobby, 'raceComplete', (c) => raceSnapshot(lobby, c.playerId))
       }
     }
   }

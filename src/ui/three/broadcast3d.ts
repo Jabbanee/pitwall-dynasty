@@ -1,33 +1,31 @@
 import * as THREE from 'three'
 import { el, toast, fmtRaceClock } from '../dom'
 import { store } from '../../state/store'
-import { MultiplayerClient, type RaceSnapshot, type LobbySnapshot } from '../../client/multiplayer-client'
+import { mpSession, type MultiplayerView } from '../../client/multiplayer-session'
+import type { RaceSnapshot, LobbySnapshot, ChampionshipSummary } from '../../client/multiplayer-client'
 import { buildTrackMeshes, type TrackMeshes } from './track3d'
 import { createCar, type CarVisual } from './car3d'
 import { TYRES } from '../../core/tyres'
 import { createCommentaryDisplay } from '../../media/commentary-display'
 import { assessCompliance } from '../../drivers/agency'
 import { regulationsForYear, teamOrderAvailability } from '../../regulations/regulations'
-import type { Championship } from '../../core/types'
-import * as liveModule from '../../sim/live-race'
-import type { LiveRaceEngine } from '../../sim/live-race'
-import * as engineModule from '../../championship/engine'
-import * as qualiModule from '../../sim/race-sim'
-
-function roundSeedFor(champ: Championship, roundIndex: number): number {
-  return ((champ.rngSeed ^ (roundIndex * 2654435761) ^ (champ.config.season * 40503)) >>> 0)
-}
-
-/** Parse ?code=XXXX from the current URL hash. */
-function codeFromHash(): string | undefined {
-  const m = /[?&]code=([A-Z0-9]+)/i.exec(location.hash)
-  return m ? m[1] : undefined
-}
+import { CIRCUITS } from '../../core/content'
 
 /**
  * 3D Race Broadcast — helicopter-camera presentation of the live
  * server-authoritative race. Driver-follow default, battle notifications,
  * live strategy controls, team radio.
+ *
+ * Two-mode rule (P0 multiplayer):
+ *   - `store.multi.active === true`  → SERVER AUTHORITY ONLY. The 3D
+ *     view reflects race snapshots pushed by the authoritative server
+ *     via `mpSession`. No local LiveRaceEngine is ever constructed.
+ *   - `store.multi.active === false` → local Solo / Quick Start
+ *     championship runs a local LiveRaceEngine against the local
+ *     championship.
+ *
+ * The two modes never mix. The MultiplayerSession and the local store
+ * are the only sources of truth per mode.
  */
 
 interface Car3D {
@@ -44,11 +42,8 @@ interface BattleGroup {
   gapSeconds: number
 }
 
-export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
+export function renderBroadcast3D(root: HTMLElement) {
   root.innerHTML = ''
-  const codeFromUrl = codeFromHash()
-  if (codeFromUrl) joinCode = codeFromUrl
-  const champ: Championship | null = store.champ
 
   // --- Layout ---
   const wrap = el('div', { class: 'broadcast3d-wrap' })
@@ -64,26 +59,34 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   const commentaryFeed = el('div', { class: 'b3d-commentary' })
   const strategyPanel = el('div', { class: 'b3d-strategy' })
   const timingMini = el('div', { class: 'b3d-timing' })
+  const mpBadge = el('div', { class: 'b3d-mp-badge' })
   const controls = el('div', { class: 'broadcast-controls' })
 
-  stage.append(topHud, followBar, battleStack, commentaryFeed, radioFeed, strategyPanel, timingMini)
+  stage.append(topHud, followBar, battleStack, commentaryFeed, radioFeed, strategyPanel, timingMini, mpBadge)
   wrap.append(stage)
   root.appendChild(wrap)
   root.appendChild(controls)
 
   // --- State ---
-  const client = new MultiplayerClient()
-  let lobbyCode = joinCode ?? ''
-  let lobby: LobbySnapshot | null = null
-  let race: RaceSnapshot | null = null
+  let lobbyCode = mpSession.view.lobbyCode ?? ''
+  let lobby: LobbySnapshot | null = mpSession.view.lobby
+  let race: RaceSnapshot | null = mpSession.view.race
+  let championship: ChampionshipSummary | null = mpSession.view.championship
   let followDriverId: string | null = null
   let myDriverIds: string[] = []
   let running = true
   let battleNotifications: Array<BattleGroup & { shownAt: number }> = []
   const cameraMode: 'heli' | 'map' = 'heli'
   const commentary = createCommentaryDisplay()
-  // Local-mode race state
-  let localEngine: LiveRaceEngine | null = null
+  type LocalEngine = {
+    state: { simTime: number; leaderLap: number; totalLaps: number; trackWetness: number; condition: string }
+    isFinished: () => boolean
+    stepLap: () => void
+    orderedCars: () => Array<{ driverId: string; teamId: string; carNumber: number; position: number; lapsDone: number; totalTime: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }>
+    results: () => Array<{ driverId: string; teamId: string; finishPosition: number; classified: boolean; lapsCompleted: number; bestLapTime?: number; pitStops: number; points: number; fastestLap: boolean; dnfReason?: string }>
+    applyCommand: (cmd: unknown) => { ok: boolean; response: string; deferred?: boolean }
+  }
+  let localEngine: LocalEngine | null = null
   let cursorSeconds = 0
   let speed = 1
   let paused = false
@@ -108,32 +111,50 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   sun.position.set(300, 500, 200)
   scene.add(sun)
 
-  // Track — from local championship content (server sends circuit id via lobby)
-  let track: TrackMeshes | null = null
-  if (champ) {
-    track = buildTrackMeshes(champ.circuits[0])
-    scene.add(track.group)
-  }
-
   // --- Car pool ---
   const car3ds = new Map<string, Car3D>()
+
+  // Track
+  let track: TrackMeshes | null = null
+
+  function getActiveCircuit() {
+    if (championship?.circuit) {
+      const fromChamp = CIRCUITS.find((c) => c.id === championship!.circuit!.id)
+      if (fromChamp) return fromChamp
+    }
+    if (store.champ) {
+      const r = store.champ.rounds[store.champ.currentRoundIndex]
+      const c = store.champ.circuits.find((x) => x.id === r.circuitId)
+      if (c) return c
+    }
+    return null
+  }
+
+  function ensureTrack() {
+    const c = getActiveCircuit()
+    if (!c) return
+    if (!track) {
+      track = buildTrackMeshes(c)
+      scene.add(track.group)
+    }
+  }
 
   function teamColorsOf(teamId: string): { primary: string; secondary: string } {
     if (lobby) {
       const t = lobby.teams.find((x) => x.teamId === teamId)
       if (t) return t.colors
     }
-    if (champ) {
-      const t = champ.teams.find((x) => x.id === teamId)
+    if (championship) {
+      const t = championship.teams.find((x) => x.id === teamId)
+      if (t) return t.colors
+    }
+    if (store.champ) {
+      const t = store.champ.teams.find((x) => x.id === teamId)
       if (t) return t.colors
     }
     return { primary: '#888888', secondary: '#ffffff' }
   }
 
-  /**
-   * Convert an era year to a 0..1 era factor for the 3D car geometry.
-   * 1980 -> 0, 1990 -> 0.15, 2000 -> 0.35, 2010 -> 0.55, 2022+ -> 0.9.
-   */
   function eraFactorFor(year: number): number {
     if (year <= 1980) return 0
     if (year <= 1990) return 0.15
@@ -144,9 +165,17 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     return 0.95
   }
 
+  function getEraYear(): number {
+    if (championship?.config && typeof (championship.config as Record<string, unknown>).eraYear === 'number') {
+      return (championship.config as Record<string, number>).eraYear
+    }
+    if (store.champ?.config.eraYear) return store.champ.config.eraYear
+    return 2024
+  }
+
   function ensureCars(snapshot: RaceSnapshot) {
     if (!track) return
-    const era = eraFactorFor(champ?.config?.eraYear ?? 2024)
+    const era = eraFactorFor(getEraYear())
     for (const car of snapshot.cars) {
       if (!car3ds.has(car.driverId)) {
         const colors = teamColorsOf(car.teamId)
@@ -155,7 +184,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
         car3ds.set(car.driverId, { driverId: car.driverId, visual, lastLap: car.lap })
       }
     }
-    // Remove cars no longer in the snapshot (defensive)
     for (const [driverId, c] of car3ds) {
       if (!snapshot.cars.some((x) => x.driverId === driverId)) {
         scene.remove(c.visual.group)
@@ -175,13 +203,8 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     for (const car of snapshot.cars) {
       const c3d = car3ds.get(car.driverId)
       if (!c3d) continue
-      // Lap fraction: derive from gap to leader + lap count.
-      // Server gives gapSeconds; approximate track position as leaderFrac - gap/total.
-      const leaderFrac = leader ? ((leader.lap % 1) + 0.5) : 0
-      void leaderFrac
-      // Better: interpolate per-lap progress using lap + gap
       const totalLen = track.totalLength
-      const gapMeters = car.gapSeconds * 55 // ~55 m/s avg
+      const gapMeters = car.gapSeconds * 55
       const frac = (((car.lap - leaderLap) + (gapMeters / totalLen)) % 1 + 1) % 1 + 0.0
       const lapFrac = ((car.lap % 1) + frac) % 1
       track.positionAt(lapFrac, tmpPos)
@@ -206,24 +229,21 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     const c3d = targetDriverId ? car3ds.get(targetDriverId) : undefined
     if (c3d) {
       const p = c3d.visual.group.position
-      // Helicopter: behind and above, leading slightly into the direction of travel
       const heading = c3d.visual.group.rotation.y
       const back = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)).multiplyScalar(-46)
       camDesired.set(p.x + back.x, p.y + 34, p.z + back.z)
       camLook.set(p.x - back.x * 0.4, p.y + 2, p.z - back.z * 0.4)
-    } else if (track) {
-      // Overview
+    } else {
       camDesired.set(0, 320, 380)
       camLook.set(0, 0, 0)
     }
-    const lerp = 1 - Math.pow(0.05, dt) // ~fast smooth follow
+    const lerp = 1 - Math.pow(0.05, dt)
     camPos.lerp(camDesired, lerp)
     camTarget.lerp(camLook, Math.min(1, lerp * 1.5))
     camera.position.copy(camPos)
     camera.lookAt(camTarget)
   }
 
-  // --- Battle detection ---
   function detectBattles(snapshot: RaceSnapshot): BattleGroup[] {
     const running = snapshot.cars.filter((c) => !c.retired && !c.finished).sort((a, b) => a.position - b.position)
     const groups: BattleGroup[] = []
@@ -254,7 +274,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   function updateBattleNotifications(snapshot: RaceSnapshot) {
     const battles = detectBattles(snapshot)
     const now = Date.now()
-    // Add new high-priority battles not currently followed
     for (const b of battles) {
       if (b.priority < 60) continue
       if (isBattleVisible(b)) continue
@@ -262,7 +281,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       battleNotifications.push({ ...b, shownAt: now })
     }
     battleNotifications = battleNotifications.filter((n) => now - n.shownAt < 12000)
-    // Render
     battleStack.innerHTML = ''
     for (const n of battleNotifications.slice(-3)) {
       const names = n.driverIds.map((id) => driverName(id)).join(' · ')
@@ -276,14 +294,16 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   }
 
   function driverName(driverId: string): string {
-    if (champ) {
-      const d = champ.drivers[driverId]
-      if (d) return d.lastName
+    if (championship?.drivers?.[driverId]) {
+      const d = championship.drivers[driverId]
+      return d.lastName
+    }
+    if (store.champ?.drivers[driverId]) {
+      return store.champ.drivers[driverId].lastName
     }
     return driverId.slice(-5)
   }
 
-  // --- Follow bar ---
   function refreshFollowBar() {
     followBar.innerHTML = ''
     const mk = (label: string, driverId: string | null, selected: boolean) =>
@@ -294,22 +314,44 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     followBar.appendChild(mk('My Driver 1', myDriverIds[0] ?? null, followDriverId === myDriverIds[0]))
     followBar.appendChild(mk('My Driver 2', myDriverIds[1] ?? null, followDriverId === myDriverIds[1]))
     followBar.appendChild(mk('Leader', race?.cars.find((c) => c.position === 1)?.driverId ?? null, followDriverId === race?.cars.find((c) => c.position === 1)?.driverId))
-    // My team quick switch
     if (myDriverIds.length > 0) {
       followBar.appendChild(el('button', { class: 'back-btn', onclick: () => { followDriverId = myDriverIds[0]; refreshFollowBar() } }, '⏎ BACK TO MY DRIVER'))
     }
   }
 
-  // --- Strategy panel (my selected driver) ---
+  function refreshMpBadge() {
+    if (store.multi.active && lobbyCode) {
+      mpBadge.innerHTML = ''
+      mpBadge.appendChild(el('span', { class: 'b3d-mp-pill' },
+        el('span', { class: 'b3d-mp-dot' }),
+        `MULTIPLAYER · ${lobbyCode}`,
+      ))
+      const conn = store.multi.connection
+      if (conn !== 'connected') {
+        mpBadge.appendChild(el('span', { class: `b3d-mp-conn ${conn}` }, conn.toUpperCase()))
+      }
+      if (store.multi.error) {
+        mpBadge.appendChild(el('span', { class: 'b3d-mp-err' }, store.multi.error))
+      }
+    } else {
+      mpBadge.innerHTML = ''
+    }
+  }
+
+  /**
+   * Send a live command. In multiplayer mode this is an authoritative
+   * request to the server. In local mode it goes through the local
+   * LiveRaceEngine (see startLocalRace).
+   */
   function sendCommand(cmd: Record<string, unknown>) {
-    if (LOCAL_MODE && localEngine) {
-      const res = localEngine.applyCommand(cmd as never)
+    if (store.multi.active) {
+      mpSession.liveCommand(cmd)
+    } else if (localEngine) {
+      const res = localEngine.applyCommand(cmd)
       toast(res.response, res.deferred === true)
       if (res.deferred) {
         radioFeed.appendChild(el('div', { class: 'event-line big' }, `📻 ${res.response}`))
       }
-    } else {
-      sendCommand(cmd)
     }
   }
 
@@ -341,7 +383,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       strategyPanel.appendChild(el('div', { class: 'b3d-strat-note' }, 'Not your car — follow only.'))
       return
     }
-    // Live controls (2-click max)
     const paceGroup = el('div', { class: 'seg-group' })
     for (const mode of ['conserve', 'normal', 'push', 'attack']) {
       paceGroup.appendChild(el('button', {
@@ -369,8 +410,7 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       orderButton(snapshot, car, 'TEAM_ORDER_PRIORITY_DRIVER', 'Prioritize this driver', 'Priority'),
       orderButton(snapshot, car, 'TEAM_ORDER_FREE', 'Free to race', 'Free'),
     )
-    // Team order availability explanation (per Pitwall Dynasty UX rule)
-    const orderContext = teamOrderContext(snapshot, car, champ)
+    const orderContext = teamOrderContext()
     if (orderContext) {
       ordersRow.appendChild(el('div', { class: 'b3d-order-explain', html: orderContext }))
     }
@@ -391,27 +431,18 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     )
   }
 
-  /**
-   * Determine the team order availability for the car and build a coloured
-   * button. "PROHIBITED" disables + explains; "RISKY" warns; "AVAILABLE"
-   * is normal. Driver verdict uses the live engine compliance calculator
-   * when available (multiplayer) and falls back to a state-based estimate
-   * from the driver record in local mode.
-   */
   function orderButton(snapshot: RaceSnapshot, car: { driverId: string }, cmd: string, label: string, short: string) {
-    if (!champ) return el('button', { class: 'small' }, short)
-    const regs = regulationsForYear(champ.config.season)
+    const regs = regulationsForYear(getEraYear())
     const avail = teamOrderAvailability(regs)
     const isSwapOrPriority = cmd === 'TEAM_ORDER_SWAP' || cmd === 'TEAM_ORDER_PRIORITY_DRIVER'
     const isDirectOrder = cmd === 'TEAM_ORDER_SWAP' || cmd === 'TEAM_ORDER_PRIORITY_DRIVER' || cmd === 'TEAM_ORDER_HOLD'
     const isProhibitedDirect = isDirectOrder && avail.directOrders === 'PROHIBITED'
     const isCodedOnly = avail.codedOrders === 'RISKY'
-    // Driver verdict comes from agency state when present (championship-scoped);
-    // otherwise from the driver's hidden traits (always-on heuristic).
-    const driver = champ.drivers[car.driverId]
-    const agency = (champ as unknown as { _agency?: { get?: (id: string) => unknown } })._agency?.get?.(car.driverId) as
+    const champ = store.champ
+    const driver = champ?.drivers[car.driverId]
+    const agency = champ ? (champ as unknown as { _agency?: { get?: (id: string) => unknown } })._agency?.get?.(car.driverId) as
       | { trustInTeam: number; morale: number; teammateRelationship: number; championshipAmbition: number; promises?: { description: string; broken: boolean }[] }
-      | undefined
+      | undefined : undefined
     let driverVerdict: 'Very Likely' | 'Likely' | 'Uncertain' | 'Unlikely' | 'Very Unlikely' | null = null
     let driverReasons: string[] = []
     if (driver && agency) {
@@ -427,7 +458,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       driverVerdict = a.verdict
       driverReasons = a.reasons
     } else if (driver) {
-      // Local mode heuristic: use driver trait + dynamic state directly
       const prof = (driver.visible.feedback + driver.hidden.pressureResistance) / 2
       const ego = driver.hidden.ego
       const aggr = driver.hidden.aggression
@@ -473,15 +503,12 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     return btn
   }
 
-  /** Compact HTML for the order context line: era + driver verdict summary. */
-  function teamOrderContext(_snapshot: RaceSnapshot, _car: { driverId: string }, championship: typeof champ): string | null {
-    if (!championship) return null
-    const regs = regulationsForYear(championship.config.season)
+  function teamOrderContext(): string | null {
+    const regs = regulationsForYear(getEraYear())
     const avail = teamOrderAvailability(regs)
     return `<strong>${avail.directOrders}</strong> · ${avail.explanation}`
   }
 
-  // --- Timing mini tower ---
   function updateTiming(snapshot: RaceSnapshot) {
     timingMini.innerHTML = ''
     const rows = [...snapshot.cars].sort((a, b) => a.position - b.position).slice(0, 10)
@@ -497,7 +524,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     }
   }
 
-  // --- Top HUD ---
   function updateTopHud(snapshot: RaceSnapshot) {
     topHud.innerHTML = ''
     topHud.append(
@@ -510,7 +536,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     )
   }
 
-  // --- Radio feed ---
   function pushRadio(entries: RaceSnapshot['radio']) {
     radioFeed.innerHTML = ''
     for (const r of entries.slice(-4)) {
@@ -521,16 +546,11 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     }
   }
 
-  // --- Commentary feed (LEAD / ANALYST) ---
   function updateCommentary(snapshot: RaceSnapshot) {
-    if (!champ) return
-    const revealed = (snapshot.events as Array<{ t: number; type: string; driverId?: string; teamId?: string; detail: string }>).map((e) => ({
-      t: e.t, type: e.type as never, driverId: e.driverId, teamId: e.teamId, detail: e.detail,
-    }))
-    const newLines = commentary.push(revealed, champ.drivers, { totalLaps: snapshot.totalLaps })
+    if (!championship && !store.champ) return
+    const drivers = store.champ?.drivers ?? (championship?.drivers ? Object.fromEntries(Object.entries(championship.drivers).map(([id, d]) => [id, d as unknown])) : {})
+    const newLines = commentary.push(snapshot.events as never, drivers as never, { totalLaps: snapshot.totalLaps })
     if (newLines.length === 0) return
-    // Render the headline of the latest moment at the top (1 line),
-    // and a small "commentary ribbon" below.
     const last = newLines[newLines.length - 1]
     commentaryFeed.innerHTML = ''
     const ribbon = el('div', { class: `b3d-commentary-ribbon role-${last.role}` },
@@ -538,7 +558,6 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       el('div', { class: 'b3d-commentary-text' }, last.text),
     )
     commentaryFeed.appendChild(ribbon)
-    // Compact history of recent lines (last 5)
     if (commentary.lines.length > 1) {
       const tail = el('div', { class: 'b3d-commentary-tail' })
       for (const l of commentary.lines.slice(-6, -1)) {
@@ -555,50 +574,78 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   const speedGroup = el('div', { class: 'seg-group' })
   for (const s of [1, 2, 4, 8]) {
     speedGroup.appendChild(el('button', {
-      onclick: () => client.vote('speed', s),
+      onclick: () => {
+        if (store.multi.active) {
+          mpSession.vote('speed', s)
+        } else {
+          speed = s
+          if (race) race.speed = s
+        }
+      },
     }, `${s}x`))
   }
   controls.append(
-    el('button', { onclick: () => client.vote('pause', race?.paused ? 0 : 1) }, '⏯'),
+    el('button', { onclick: () => {
+      if (store.multi.active) mpSession.vote('pause', race?.paused ? 0 : 1)
+      else paused = !paused
+    } }, '⏯'),
     speedGroup,
-    el('button', { onclick: () => client.vote('rewind', Math.max(0, (race?.cursorSeconds ?? 0) - 30)) }, '⏪ 30s'),
-    el('button', { onclick: () => client.resumeLive() }, '⏵ LIVE'),
+    el('button', { onclick: () => {
+      if (store.multi.active) mpSession.vote('rewind', Math.max(0, (race?.cursorSeconds ?? 0) - 30))
+    } }, '⏪ 30s'),
+    el('button', { onclick: () => {
+      if (store.multi.active) mpSession.resumeLive()
+    } }, '⏵ LIVE'),
     el('span', { class: 'spacer' }),
     el('button', { class: 'primary', onclick: () => {
-      if (LOCAL_MODE) {
-        // Local mode: run the live race to completion if needed, then advance
-        if (localEngine && !localEngine.isFinished()) {
-          // Speed up so we don't sit here forever
-          const tmpSpeed = speed; speed = 16
-          let safety = 0
-          while (!localEngine.isFinished() && safety < 1000) {
-            localEngine.stepLap(); safety++
-          }
-          speed = tmpSpeed
-          commitLocalResults()
-        }
-        location.hash = '#/paddock'
+      if (store.multi.active) {
+        // The server decides validity of next-round transition
+        mpSession.nextRound()
       } else {
-        client.nextRound()
+        location.hash = '#/paddock'
       }
     } }, 'Next round'),
     el('button', { onclick: () => (location.hash = '#/hq') }, 'Exit'),
   )
 
-  // --- Networking ---
-  client.on('lobbyState', (payload) => {
-    lobby = payload as LobbySnapshot
+  function refreshSpeedButtons() {
+    for (const b of speedGroup.querySelectorAll('button')) {
+      b.classList.toggle('selected', b.textContent === `${race?.speed ?? 1}x`)
+    }
+  }
+
+  // --- Wire MultiplayerSession view into the local view ---
+  const unsubscribe = mpSession.subscribe((v: MultiplayerView) => {
+    lobby = v.lobby
+    race = v.race
+    championship = v.championship
+    lobbyCode = v.lobbyCode ?? ''
+    refreshMpBadge()
+    if (!followDriverId && v.race?.myTeamId) {
+      const myTeam = v.championship?.teams.find((t) => t.id === v.race!.myTeamId)
+      if (myTeam) {
+        myDriverIds = myTeam.driverIds
+        if (myDriverIds.length > 0) followDriverId = myDriverIds[0]
+        refreshFollowBar()
+      }
+    }
+    ensureTrack()
+    if (race) {
+      ensureCars(race)
+      updateCarPositions(race)
+      updateBattleNotifications(race)
+      updateStrategyPanel(race)
+      updateTiming(race)
+      updateTopHud(race)
+      pushRadio(race.radio)
+      updateCommentary(race)
+      refreshSpeedButtons()
+    }
   })
 
-  client.on('joined', (payload) => {
-    const p = payload as { code: string }
-    lobbyCode = p.code
-    toast(`Connected to lobby ${p.code}`)
-  })
-
-  client.on('raceState', (payload) => {
-    race = payload as RaceSnapshot
-    if (!race) return
+  refreshMpBadge()
+  ensureTrack()
+  if (race) {
     ensureCars(race)
     updateCarPositions(race)
     updateBattleNotifications(race)
@@ -608,201 +655,138 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
     pushRadio(race.radio)
     updateCommentary(race)
     refreshSpeedButtons()
-  })
+  }
 
-  client.on('raceStart', (payload) => {
-    race = payload as RaceSnapshot
-    toast('Race started!')
-  })
-
-  client.on('radioResponse', (payload) => {
-    const r = payload as { response: string; deferred?: boolean }
-    if (r.response) toast(r.response, r.deferred === true)
-  })
-
-  client.on('raceComplete', (payload) => {
-    race = payload as RaceSnapshot
-    toast('Chequered flag!')
-  })
-
-  client.on('phaseChange', (payload) => {
-    const p = payload as { phase: string }
-    if (p.phase === 'management') {
-      toast('New round — management phase open.')
-    }
-  })
-
-  client.on('voteState', (payload) => {
-    const v = payload as { vote: RaceSnapshot['vote']; speed: number; paused: boolean }
-    if (race) {
-      race.vote = v.vote
-      race.speed = v.speed
-      race.paused = v.paused
-    }
-    refreshSpeedButtons()
-  })
-
-  client.on('error', (payload) => {
-    toast((payload as { message: string }).message, true)
-  })
-
-  function refreshSpeedButtons() {
-    for (const b of speedGroup.querySelectorAll('button')) {
-      b.classList.toggle('selected', b.textContent === `${race?.speed ?? 1}x`)
+  // --- Multiplayer race-state request loop (broadcast polls server) ---
+  let lastReq = 0
+  function tickRequest(now: number) {
+    if (!running) return
+    if (store.multi.active && now - lastReq > 1500) {
+      lastReq = now
+      mpSession.requestRaceState()
     }
   }
 
-  // --- Connect (only for multiplayer mode; local mode runs a local engine) ---
-  const LOCAL_MODE = !joinCode
-
-  if (!LOCAL_MODE) {
-    client.connect('ws://localhost:8080').then(() => {
-      client.joinLobby(lobbyCode)
-      client.requestRaceState()
-    }).catch((e: Error) => {
-      stage.appendChild(el('div', { class: 'empty-state', style: 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(7,9,12,.85);z-index:20' },
-        el('div', { style: 'text-align:center' },
-          el('h3', {}, 'Multiplayer server unavailable'),
-          el('p', { style: 'color:var(--text-1)' }, e.message),
-        ),
-      ))
-    })
-  } else {
-    // LOCAL MODE: run the authoritative engine in-process against the local
-    // championship. Same LiveRaceEngine as the server uses.
+  // --- Local mode bootstrap (no multiplayer session) ---
+  if (!store.multi.active) {
     startLocalRace()
+  } else {
+    // Multiplayer: nothing to do locally — server snapshots drive everything
+    mpSession.requestRaceState()
   }
 
   function startLocalRace() {
+    const champ = store.champ
     if (!champ || !store.engine) return
-    const { LiveRaceEngine } = liveModule
-    const { buildTeamRacePackages } = engineModule
-    const round = champ.rounds[champ.currentRoundIndex]
-    // If the headless engine already finished the race, jump straight to
-    // results so the player isn't stuck in a blank broadcast view.
-    if (round.raceDone) {
-      toast('Race complete — viewing results.')
-      location.hash = '#/results'
-      return
-    }
-
-    // Lock packages locally (without pre-simulating the whole race)
-    const seed = roundSeedFor(champ, round.index)
-    const packages: import('../../core/types').RacePackage[] = []
-    for (const team of champ.teams) {
-      packages.push(...buildTeamRacePackages(champ, team, round))
-    }
-    // Pass practice bonuses from round.practiceBonus into the package so the
-    // local engine can consume them via liveLapTime().
-    const practiceByTeam = round.practiceBonus ?? {}
-    for (const pkg of packages) {
-      const b = practiceByTeam[pkg.teamId]
-      if (b !== undefined) (pkg as unknown as { practiceBonus?: number }).practiceBonus = b
-    }
-    // Qualifying from the deterministic path
-    const { simulateQualifying } = qualiModule
-    const quali = simulateQualifying({
-      roundId: `${round.index}`,
-      circuit: champ.circuits.find((c) => c.id === round.circuitId)!,
-      packages: packages.map((p) => ({
-        championshipId: p.championshipId, roundId: p.roundId, teamId: p.teamId,
-        driverId: p.driverId, carPerformance: p.carPerformance, setup: p.setup,
-        qualiTyre: 'soft' as const, version: 1, hash: p.hash,
-      })),
-      drivers: champ.drivers,
-      seed,
-      weatherForecast: { rainProbability: 0.2 },
+    void import('../../sim/live-race').then(({ LiveRaceEngine }) => {
+      void import('../../sim/race-sim').then(({ simulateQualifying }) => {
+        void import('../../championship/engine').then(({ buildTeamRacePackages }) => {
+          const round = champ.rounds[champ.currentRoundIndex]
+          if (round.raceDone) {
+            toast('Race complete — viewing results.')
+            location.hash = '#/results'
+            return
+          }
+          const seed = (champ.rngSeed ^ (round.index * 2654435761) ^ (champ.config.season * 40503)) >>> 0
+          const packages: import('../../core/types').RacePackage[] = []
+          for (const team of champ.teams) packages.push(...buildTeamRacePackages(champ, team, round))
+          const practiceByTeam = round.practiceBonus ?? {}
+          for (const pkg of packages) {
+            const b = practiceByTeam[pkg.teamId]
+            if (b !== undefined) (pkg as unknown as { practiceBonus?: number }).practiceBonus = b
+          }
+          const quali = simulateQualifying({
+            roundId: `${round.index}`,
+            circuit: champ.circuits.find((c) => c.id === round.circuitId)!,
+            packages: packages.map((p) => ({
+              championshipId: p.championshipId, roundId: p.roundId, teamId: p.teamId,
+              driverId: p.driverId, carPerformance: p.carPerformance, setup: p.setup,
+              qualiTyre: 'soft' as const, version: 1, hash: p.hash,
+            })),
+            drivers: champ.drivers,
+            seed,
+            weatherForecast: { rainProbability: 0.2 },
+          })
+          round.qualifyingResult = quali
+          round.qualifyingDone = true
+          round.packagesLocked = true
+          const byDriver = new Map(packages.map((p) => [p.driverId, p]))
+          const ordered: typeof packages = []
+          for (const row of quali.rows) {
+            const pkg = byDriver.get(row.driverId)
+            if (pkg) { ordered.push(pkg); byDriver.delete(row.driverId) }
+          }
+          for (const pkg of byDriver.values()) ordered.push(pkg)
+          localEngine = new LiveRaceEngine(champ.circuits.find((c) => c.id === round.circuitId)!, ordered, champ.drivers, (seed ^ 0x5aced) >>> 0) as unknown as LocalEngine
+          myDriverIds = store.playerTeam ? [...store.playerTeam.driverIds] : []
+          followDriverId = myDriverIds[0] ?? null
+          refreshFollowBar()
+        })
+      })
     })
-    round.qualifyingResult = quali
-    round.qualifyingDone = true
-    round.packagesLocked = true
-
-    const byDriver = new Map(packages.map((p) => [p.driverId, p]))
-    const ordered: typeof packages = []
-    for (const row of quali.rows) {
-      const pkg = byDriver.get(row.driverId)
-      if (pkg) { ordered.push(pkg); byDriver.delete(row.driverId) }
-    }
-    for (const pkg of byDriver.values()) ordered.push(pkg)
-
-    localEngine = new LiveRaceEngine(champ.circuits.find((c) => c.id === round.circuitId)!, ordered, champ.drivers, (seed ^ 0x5aced) >>> 0)
-    myDriverIds = store.playerTeam ? [...store.playerTeam.driverIds] : []
-    followDriverId = myDriverIds[0] ?? null
-    refreshFollowBar()
   }
 
   function localTick(dt: number) {
-    if (!localEngine || localEngine.isFinished()) return
-    // Cursor advances in real time; sim steps only when the cursor passes
-    // the leader's elapsed time. NO jump-to-simTime (that raced through laps).
+    const e = localEngine
+    if (!e || e.isFinished()) return
     cursorSeconds += dt * speed
     let steps = 0
-    while (!localEngine.isFinished() && localEngine.state.simTime < cursorSeconds && steps < 3) {
-      localEngine.stepLap()
+    while (!e.isFinished() && e.state.simTime < cursorSeconds && steps < 3) {
+      e.stepLap()
       steps++
     }
-    if (localEngine.isFinished()) {
-      cursorSeconds = Math.min(cursorSeconds, localEngine.state.simTime + 5)
-      commitLocalResults()
+    if (e.isFinished()) {
+      cursorSeconds = Math.min(cursorSeconds, e.state.simTime + 5)
+      // commitLocalResults inlined to keep the code path self-contained
+      const champ = store.champ
+      if (champ) {
+        const round = champ.rounds[champ.currentRoundIndex]
+        const live = e.results()
+        round.raceResult = {
+          roundId: `${round.index}`,
+          circuitId: round.circuitId,
+          simulationVersion: 'local',
+          seed: 0,
+          rulesHash: 'local',
+          events: [],
+          results: live.map((r) => ({
+            driverId: r.driverId, teamId: r.teamId, startPosition: 0, finishPosition: r.finishPosition,
+            classified: r.classified, lapsCompleted: r.lapsCompleted, bestLapTime: r.bestLapTime,
+            pitStops: r.pitStops, penaltiesSeconds: 0, points: r.points, fastestLap: r.fastestLap,
+            dnfReason: r.dnfReason,
+          })),
+          totalSimTime: e.state.simTime,
+          safetyCarCount: 0, vscCount: 0,
+        }
+        round.raceDone = true
+        round.phase = 'roundResults'
+        champ.phase = 'roundResults'
+        store.finishLiveRace(round.raceResult)
+      }
       toast('Chequered flag — open Results to continue.')
     }
   }
 
-  /** Write live race results back into the championship round. */
-  function commitLocalResults() {
-    if (!localEngine || !champ) return
-    const round = champ.rounds[champ.currentRoundIndex]
-    const live = localEngine.results()
-    round.raceResult = {
-      roundId: `${round.index}`,
-      circuitId: round.circuitId,
-      simulationVersion: localEngine.simulationVersion,
-      seed: localEngine.seed,
-      rulesHash: localEngine.rulesHash,
-      events: [...localEngine.events].sort((a, b) => a.t - b.t),
-      results: live.map((r) => ({
-        driverId: r.driverId,
-        teamId: r.teamId,
-        startPosition: 0,
-        finishPosition: r.finishPosition,
-        classified: r.classified,
-        lapsCompleted: r.lapsCompleted,
-        bestLapTime: r.bestLapTime,
-        pitStops: r.pitStops,
-        penaltiesSeconds: 0,
-        points: r.points,
-        fastestLap: r.fastestLap,
-        dnfReason: r.dnfReason,
-      })),
-      fastestLapDriverId: live.find((r) => r.fastestLap)?.driverId,
-      totalSimTime: localEngine.state.simTime,
-      safetyCarCount: 0,
-      vscCount: 0,
-    }
-    round.raceDone = true
-    round.phase = 'roundResults'
-    champ.phase = 'roundResults'
-    // Defer to the store so finances + news run in one place
-    store.finishLiveRace(round.raceResult)
-  }
-
   function localSnapshot(): RaceSnapshot | null {
-    if (!localEngine) return null
-    const ordered = localEngine.orderedCars()
+    const e = localEngine
+    if (!e) return null
+    const ordered = e.orderedCars()
     const leader = ordered[0]
     return {
-      phase: localEngine.isFinished() ? 'roundResults' : 'race',
+      phase: e.isFinished() ? 'roundResults' : 'race',
       cursorSeconds,
       speed,
       paused,
       replayActive: false,
       vote: null,
       myTeamId: store.playerTeam?.id,
-      events: localEngine.events.filter((e) => e.t <= cursorSeconds + 3),
-      radio: localEngine.radioFeed.slice(-12),
+      myPlayerId: '',
+      events: [],
+      radio: [],
       cars: ordered.map((c) => ({
         driverId: c.driverId, teamId: c.teamId, carNumber: c.carNumber, position: c.position,
-        lap: c.lapsDone, gapSeconds: c.totalTime - (leader?.totalTime ?? c.totalTime),
+        lap: c.lapsDone, trackProgress: c.totalTime,
+        gapSeconds: c.totalTime - (leader?.totalTime ?? c.totalTime),
         tyre: c.tyre, tyreAge: c.tyreAge, tyreWear: Math.round(c.tyreWear * 100) / 100,
         pitStops: c.pitStops, paceMode: c.strategy.paceMode, energy: c.strategy.energy,
         damage: Math.round(c.damage * 100) / 100,
@@ -810,11 +794,11 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
         retired: c.retired, finished: c.finished,
         isMyTeam: c.teamId === store.playerTeam?.id,
       })),
-      leaderLap: localEngine.state.leaderLap,
-      totalLaps: localEngine.state.totalLaps,
-      trackWetness: localEngine.state.trackWetness,
-      condition: localEngine.state.condition,
-      results: localEngine.isFinished() ? localEngine.results() : undefined,
+      leaderLap: e.state.leaderLap,
+      totalLaps: e.state.totalLaps,
+      trackWetness: e.state.trackWetness,
+      condition: e.state.condition,
+      results: e.isFinished() ? (e.results() as never) : undefined,
       standings: undefined,
     }
   }
@@ -831,32 +815,29 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
   resize()
 
   let lastFrame = performance.now()
-  let statePollAccum = 0
   function frame(now: number) {
     if (!running) return
     const dt = Math.min(0.1, (now - lastFrame) / 1000)
     lastFrame = now
-    if (LOCAL_MODE) {
-      if (!paused) localTick(dt)
-      race = localSnapshot()
-      if (race) {
-        ensureCars(race)
-        updateCarPositions(race)
-        updateBattleNotifications(race)
-        updateStrategyPanel(race)
-        updateTiming(race)
-        updateTopHud(race)
-        pushRadio(race.radio)
-        updateCommentary(race)
-      }
+    if (store.multi.active) {
+      // server-driven — nothing to tick locally
     } else {
-      statePollAccum += dt
-      if (statePollAccum > 1.5) {
-        statePollAccum = 0
-        client.requestRaceState()
+      if (!paused) localTick(dt)
+      const snap = localSnapshot()
+      if (snap) {
+        race = snap
+        ensureCars(snap)
+        updateCarPositions(snap)
+        updateBattleNotifications(snap)
+        updateStrategyPanel(snap)
+        updateTiming(snap)
+        updateTopHud(snap)
+        pushRadio(snap.radio)
+        updateCommentary(snap)
       }
     }
     updateCamera(dt)
+    tickRequest(now)
     renderer.render(scene, camera)
     requestAnimationFrame(frame)
   }
@@ -869,6 +850,7 @@ export function renderBroadcast3D(root: HTMLElement, joinCode?: string) {
       for (const c of car3ds.values()) c.visual.dispose()
       renderer.dispose()
       observer.disconnect()
+      unsubscribe()
     }
   })
   observer.observe(document.body, { childList: true, subtree: true })

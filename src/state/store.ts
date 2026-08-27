@@ -3,22 +3,59 @@ import { GameEngine } from '../championship/game-engine'
 import { aiPrepareRound } from '../ai/ai-manager'
 import { hasSave, loadFromStorage, saveToStorage, clearSave } from './persistence'
 import { toast } from '../ui/dom'
+import type { ChampionshipSummary, RaceSnapshot, LobbySnapshot } from '../client/multiplayer-client'
 
 /**
- * AppStore — client-side holder for the authoritative championship. In this
- * local prototype the "server" runs in-process; the API boundary is the
- * GameEngine class. A real deployment swaps this module for a transport
- * layer without touching the UI code.
+ * AppStore — client-side holder for the LOCAL championship. The local
+ * championship is what single-player / Quick Start / Solo Career uses.
+ *
+ * Multiplayer uses a SEPARATE mirror (`store.multi`) populated by the
+ * `MultiplayerSession` from authoritative server snapshots. In multiplayer
+ * mode the UI MUST read `store.multi`, not `store.champ`.
+ *
+ * Two-mode rule:
+ *   - `multi.active === true`  → broadcast, results, standings, hq,
+ *     management, qualifying all read from `store.multi`. The local
+ *     `champ` is irrelevant and must NOT be consulted.
+ *   - `multi.active === false` → everything reads from `champ` as before.
  */
+
+export type MultiplayerConnection = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'error'
 
 type Listener = () => void
 
 class AppStore {
+  /** Local-mode championship (Quick Start, Solo Career, previous save). */
   champ: Championship | null = null
   engine: GameEngine | null = null
   private listeners = new Set<Listener>()
   /** Countdown deadline (epoch ms) for the management phase. */
   managementDeadline = 0
+
+  /**
+   * Multiplayer read-only mirror. Populated by MultiplayerSession.
+   * In multiplayer mode this is the only thing the broadcast/HQ/standings
+   * UI is allowed to read. The simulation never happens here.
+   */
+  multi: {
+    active: boolean
+    connection: MultiplayerConnection
+    lobbyCode: string | null
+    error: string | null
+    championship: ChampionshipSummary | null
+    lobby: LobbySnapshot | null
+    race: RaceSnapshot | null
+    joined: { code: string; playerId: string; sessionToken: string } | null
+  } = {
+    active: false,
+    connection: 'idle',
+    lobbyCode: null,
+    error: null,
+    championship: null,
+    lobby: null,
+    race: null,
+    joined: null,
+  }
 
   setChampionship(champ: Championship) {
     this.champ = champ
@@ -27,9 +64,32 @@ class AppStore {
     this.emit()
   }
 
+  /**
+   * Force-clear any in-memory local championship. Used when entering
+   * a multiplayer championship so the previous local Quick Start state
+   * cannot contaminate the multiplayer view.
+   */
+  clearLocalChampionship() {
+    if (this.champ) {
+      this.champ = null
+      this.engine = null
+      this.emit()
+    }
+  }
+
+  setMulti(multi: Partial<AppStore['multi']>) {
+    this.multi = { ...this.multi, ...multi }
+    this.emit()
+  }
+
+  /** Strict multiplayer mode check. */
+  get isMultiplayer(): boolean {
+    return this.multi.active
+  }
+
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn)
-    return () => this.listeners.delete(fn)
+    return () => { this.listeners.delete(fn) }
   }
 
   emit() {
@@ -37,6 +97,12 @@ class AppStore {
   }
 
   get playerTeam() {
+    // Multiplayer mode: local `champ` is the only complete Team record.
+    // The multiplayer view layer does not use `store.playerTeam`; it reads
+    // directly from `store.multi.championship.teams`. Returning undefined
+    // here keeps the local-mode consumers from accidentally consuming
+    // a multi-mode state.
+    if (this.multi.active) return undefined
     if (!this.champ?.playerTeamId || !this.champ) return undefined
     return this.champ.teams.find((t) => t.id === this.champ!.playerTeamId)
   }
