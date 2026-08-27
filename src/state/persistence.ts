@@ -5,7 +5,7 @@ import type { Championship } from '../core/types'
  * additive optional fields (careerKind, eraYear, practiceBonus) do NOT
  * require a bump — they are defaulted by `migrateChampionship`.
  */
-export const SAVE_SCHEMA_VERSION = 2
+export const SAVE_SCHEMA_VERSION = 3
 const STORAGE_KEY = 'pitwall-dynasty.save'
 const SETTINGS_KEY = 'pitwall-dynasty.settings'
 
@@ -73,6 +73,35 @@ function migrateChampionship(c: Championship, from: number): Championship {
     if (!champ.config.eraYear) champ.config.eraYear = champ.mode === 'career' ? 2022 : 2024
     for (const r of champ.rounds) {
       if (!r.practiceBonus) r.practiceBonus = {}
+    }
+  }
+  // v2 -> v3: add driver-ecosystem fields
+  if (from < 3) {
+    if (!('womenSeriesEstablished' in champ) || champ.womenSeriesEstablished === undefined) {
+      champ.womenSeriesEstablished = champ.mode === 'career' && (champ.config.eraYear ?? 2022) >= 2014
+    }
+    for (const d of Object.values(champ.drivers)) {
+      if (!d.gender) d.gender = 'male'
+      // Promote legacy history (season, teamId, points, wins) to the
+      // new DriverSeasonRecord shape.
+      const legacyHistory = (d as unknown as { history?: Array<{ season?: number; teamId?: string; points?: number; wins?: number }> }).history
+      if (Array.isArray(legacyHistory) && legacyHistory.length > 0 && (legacyHistory[0] && !('seriesId' in legacyHistory[0]))) {
+        d.history = legacyHistory.map((h) => ({
+          season: h.season ?? 0,
+          seriesId: 'base.championship.wgp' as const,
+          teamId: h.teamId ?? null,
+          starts: 1,
+          wins: h.wins ?? 0,
+          podiums: 0,
+          poles: 0,
+          fastestLaps: 0,
+          points: h.points ?? 0,
+          championshipPosition: 0,
+        }))
+      }
+      if (!d.eligibility) {
+        d.eligibility = { driverId: d.id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] }
+      }
     }
   }
   return champ
