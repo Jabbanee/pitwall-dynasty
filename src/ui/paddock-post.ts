@@ -119,13 +119,37 @@ export function renderPaddockPost(root: HTMLElement) {
     ),
   )
 
-  // --- Lead story ---
-  const leadCard = el('article', { class: 'paddock-lead' },
-    el('div', { class: 'paddock-kicker' }, 'RACE REPORT'),
-    el('h1', {}, post.lead.headline),
-    el('p', { class: 'paddock-lead-body' }, post.lead.body),
-    el('div', { class: 'paddock-byline' }, `By The Paddock Post Staff · ${circuit?.country ?? ''}`),
-  )
+  // --- Lead story with procedural hero visual ---
+  const leadCard = el('article', { class: 'paddock-lead' })
+  leadCard.appendChild(el('div', { class: 'paddock-kicker' }, 'RACE REPORT'))
+  // Hero visual: inline circuit + podium + team emblem
+  const hero = el('div', { class: 'paddock-hero-image', style: 'aspect-ratio:16/9;margin-bottom:10px' })
+  const winnerTeamObj = winnerEntry ? champ.teams.find((t) => t.id === winnerEntry.teamId) : null
+  const winnerColor = winnerTeamObj?.colors.primary ?? '#e63946'
+  const winnerColor2 = winnerTeamObj?.colors.secondary ?? '#fff'
+  hero.innerHTML = `<svg viewBox="0 0 800 360" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+    <defs>
+      <linearGradient id="heroTrack" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${winnerColor}"/><stop offset="100%" stop-color="${winnerColor2}"/>
+      </linearGradient>
+      <linearGradient id="heroSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#10141a"/><stop offset="1" stop-color="#04060a"/>
+      </linearGradient>
+    </defs>
+    <rect width="800" height="360" fill="url(#heroSky)"/>
+    <path d="M 100 180 Q 100 60 280 60 L 480 60 Q 600 60 600 180 L 600 280 Q 600 360 480 360 L 280 360 Q 100 360 100 180 Z" fill="none" stroke="url(#heroTrack)" stroke-width="4" opacity="0.7"/>
+    <rect x="380" y="160" width="40" height="40" fill="${winnerColor}" stroke="#fff" stroke-width="2"/>
+    <rect x="380" y="200" width="40" height="40" fill="rgba(255,255,255,0.6)"/>
+    <rect x="380" y="240" width="40" height="40" fill="rgba(212,160,23,0.8)"/>
+    <text x="500" y="320" font-family="Rajdhani,Inter,sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="#fff">${(winnerTeamObj?.shortName ?? '—')} P1</text>
+    <text x="500" y="300" font-family="Rajdhani,Inter,sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="rgba(255,255,255,0.5)">P2</text>
+    <text x="500" y="260" font-family="Rajdhani,Inter,sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="rgba(255,255,255,0.4)">P3</text>
+    <text x="40" y="40" font-family="JetBrains Mono,monospace" font-size="10" letter-spacing="1" fill="rgba(255,255,255,0.5)">CHEQ ${winnerName.toUpperCase()}</text>
+  </svg>`
+  leadCard.appendChild(hero)
+  leadCard.appendChild(el('h1', {}, post.lead.headline))
+  leadCard.appendChild(el('p', { class: 'paddock-lead-body' }, post.lead.body))
+  leadCard.appendChild(el('div', { class: 'paddock-byline' }, `By The Paddock Post Staff · ${circuit?.country ?? ''}`))
   inner.appendChild(leadCard)
 
   // --- Stats strip ---
@@ -155,14 +179,14 @@ export function renderPaddockPost(root: HTMLElement) {
   }
   inner.appendChild(grid)
 
-  // --- Driver quotes ---
+  // --- Driver quotes (use new .driver-quote) ---
   if (quotes.length > 0) {
     inner.appendChild(el('h3', { class: 'paddock-section' }, 'In their own words'))
-    const qbox = el('div', { class: 'paddock-quotes' })
+    const qbox = el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px' })
     for (const q of quotes) {
-      qbox.appendChild(el('blockquote', { class: 'paddock-quote' },
+      qbox.appendChild(el('div', { class: 'driver-quote' },
         el('p', {}, q.text),
-        el('cite', {}, `— ${q.who}, ${q.team}`),
+        el('div', { class: 'who' }, `— ${q.who}, ${q.team}`),
       ))
     }
     inner.appendChild(qbox)

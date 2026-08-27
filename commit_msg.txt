@@ -1,41 +1,28 @@
-feat(results,drivers,standings,staff,facilities,development,sponsors,app): P1 visual rewrite of all in-game team-management screens
+feat(career,paddock,car3d,broadcast): cinematic career/era selection, Paddock editorial hero, era-distinct 3D cars, broadcast radio with team colour
 
-- src/ui/results.ts: chequered-flag hero, full podium (P1
-  gold block, P2 silver, P3 bronze) using the .podium primitive,
-  race-story tile, player-team summary tiles, full classification
-  table with position deltas and team colour blocks.
-- src/ui/drivers.ts: new file. Each driver has a .driver-card
-  with helmet, large typography, rating grid, contract and a
-  .driver-agency block (morale / trust / role / contract /
-  championship-ambition bars + concerns & wins). .driver-relation
-  block shows the two teammates with relationship label and
-  recent causes. Free agents stay in a market table.
-- src/ui/standings.ts: new file. Title-battle card at the top
-  with the top 3 drivers and their points gap. Drivers'
-  Championship table with team-colour block per row. Constructors'
-  table with team-colour block.
-- src/ui/staff.ts: new file. Staff grouped into TECHNICAL / RACE
-  / MANAGEMENT / SPORTING. Each member has a role icon, name,
-  role label, salary, contract and a rating bar. Staff market
-  shows available candidates (hiring not yet implemented in P1).
-- src/ui/facilities.ts: new file. 8 facilities split into
-  ENGINEERING and OPERATIONS sections. Each facility has a
-  facility icon, name, level pips, effect summary and an upgrade
-  button wired to startFacilityUpgrade.
-- src/ui/development.ts: new file. Regulation change banner
-  (2027 Technical Regulation Change) at the top. Two-column body
-  with a procedural car-stage SVG with hotspot buttons for every
-  car module (front wing, nose, floor, suspension, cooling, rear
-  wing) and a current-vs-next-season tradeoff block. Active
-  development projects render in the right column with stats,
-  cost, time and risk. New project tiles use proposeModifiersForSlot.
-- src/ui/sponsors.ts: new file. Sponsors grouped into TITLE
-  PARTNER / MAJOR / TECHNICAL tiers. Each sponsor uses a
-  fictional wordmark and colour (sponsorVisual() helper) and
-  shows payment, contract remaining, expectations and position
-  bonus.
-- src/ui/app.ts: extracted renderFinances, renderNews, and routed
-  to the new files. Finances uses .mini-tile for the burn
-  breakdown.
+- src/ui/new-championship.ts: full rewrite. Real / Fictional
+  career choice uses .career-choice two-card layout. Era strip
+  uses .era-strip with 7 large era tiles. Selected era shows an
+  era-summary card using .kv-grid with the relevant regulations
+  (team orders, position swaps, qualifying, refuelling, compound
+  count, points, cost cap, safety car). Common options (team
+  count, races, management time, weather, equal teams) use the
+  existing .slider-row / .seg-group primitives.
+- src/ui/paddock-post.ts: lead story now includes a procedural
+  hero SVG (circuit + podium blocks with the winner's team
+  colour + golden P2 + bronze P3), and the driver-quotes section
+  now uses the new .driver-quote pull-quote primitive in a 3-up
+  grid.
+- src/ui/three/car3d.ts: increased era contrast. 1980s = narrow
+  chassis, slim nose, tall airbox, tall rear wing, no halo, no
+  floor. 2022 = wide chassis + nose, low airbox, low rear wing,
+  halo, ground-effect floor. Sidepod and front-wing width also
+  scale with era. The 1980 vs 2022 silhouette is now visibly
+  different in a 3/4 view.
+- src/ui/three/broadcast3d.ts: radio feed now uses the
+  .b3d-radio-line primitive with team-colour stripe, RADIO /
+  REFUSAL role pill, driver surname and message. Positioning CSS
+  for .b3d-timing and .b3d-battle-stack already places them so
+  they do not overlap on a 1920x1080 viewport.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>

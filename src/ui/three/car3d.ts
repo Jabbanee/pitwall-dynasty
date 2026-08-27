@@ -53,46 +53,65 @@ export function createCar(opts: CarVisualOptions): CarVisual {
   const accent = accentMaterial(opts.colors)
   const era = opts.eraFactor // 0..1
 
-  // Chassis: central tub + nose
-  const tub = new THREE.Mesh(new THREE.BoxGeometry(2.0 - era * 0.3, 0.55, 4.4), body)
-  tub.position.y = 0.45
+  // Chassis: central tub + nose — 1980s slim, 2022 wide
+  const tubWidth = 1.6 + era * 0.6
+  const tub = new THREE.Mesh(new THREE.BoxGeometry(tubWidth, 0.5 + era * 0.1, 4.4), body)
+  tub.position.y = 0.4
   group.add(tub)
 
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.9 - era * 0.25, 0.35, 2.2), body)
-  nose.position.set(0, 0.42, 3.0)
+  const noseWidth = 0.7 + era * 0.3
+  const noseLength = 2.0 + era * 0.3
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(noseWidth, 0.3 + era * 0.1, noseLength), body)
+  nose.position.set(0, 0.4, 2.8 + (noseLength - 2.2) / 2)
   group.add(nose)
 
-  // Front wing
-  const frontWing = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.1, 0.9), accent)
-  frontWing.position.set(0, 0.18, 4.1)
+  // Front wing — wider and lower on modern cars
+  const fwWidth = 2.6 + era * 1.0
+  const fwHeight = 0.06 + (1 - era) * 0.08 // tall 1980s wings
+  const frontWing = new THREE.Mesh(new THREE.BoxGeometry(fwWidth, fwHeight, 0.9), accent)
+  frontWing.position.set(0, 0.12 + (1 - era) * 0.12, 3.6 + (noseLength - 2.2))
   group.add(frontWing)
 
-  // Sidepods
-  const podGeo = new THREE.BoxGeometry(0.8 + era * 0.5, 0.6, 2.4)
+  // Sidepods — slim in 1980s, fat in 2022 ground-effect era
+  const podWidth = 0.6 + era * 0.6
+  const podHeight = 0.5 + era * 0.15
+  const podGeo = new THREE.BoxGeometry(podWidth, podHeight, 2.2 + era * 0.4)
   const podL = new THREE.Mesh(podGeo, body)
-  podL.position.set(-1.25 - era * 0.15, 0.5, -0.2)
+  podL.position.set(-(1.0 + era * 0.4), 0.4, -0.1)
   const podR = podL.clone()
-  podR.position.x = 1.25 + era * 0.15
+  podR.position.x = 1.0 + era * 0.4
   group.add(podL, podR)
 
-  // Engine cover / airbox
-  const cover = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7 + era * 0.4, 2.6), body)
-  cover.position.set(0, 0.85, -1.4)
+  // Engine cover / airbox — high in older eras
+  const coverHeight = 0.5 + (1 - era) * 0.4
+  const cover = new THREE.Mesh(new THREE.BoxGeometry(0.7, coverHeight, 2.4), body)
+  cover.position.set(0, 0.7 + (1 - era) * 0.3, -1.4)
   group.add(cover)
-  const airbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.7), DARK_MAT)
-  airbox.position.set(0, 1.35 + era * 0.2, -0.6)
+  // Tall airbox in 1980s-90s, low scoop in modern era
+  const airboxHeight = era > 0.6 ? 0.25 : 0.6
+  const airbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, airboxHeight, 0.7), DARK_MAT)
+  airbox.position.set(0, 0.95 + (1 - era) * 0.5, -0.6)
   group.add(airbox)
 
-  // Rear wing
-  const rearWing = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.12, 0.8), accent)
-  rearWing.position.set(0, 1.15, -3.1)
+  // Rear wing — 1980s very tall, modern low
+  const rwWidth = 2.6 + era * 0.8
+  const rwHeight = era > 0.5 ? 0.1 : 0.4 + (0.5 - era) * 0.6
+  const rearWing = new THREE.Mesh(new THREE.BoxGeometry(rwWidth, rwHeight, 0.8), accent)
+  rearWing.position.set(0, 1.0 + (1 - era) * 0.7, -3.1)
   group.add(rearWing)
   const rwPylon = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 0.4), DARK_MAT)
-  rwPylon.position.set(0, 0.75, -3.0)
+  rwPylon.position.set(0, 0.65 + (1 - era) * 0.4, -3.0)
   group.add(rwPylon)
 
-  // Halo-ish protection for modern eras
-  if (era > 0.7) {
+  // Floor / ground-effect — modern floor channel under the car
+  if (era > 0.6) {
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(tubWidth * 0.95, 0.04, 3.0), DARK_MAT)
+    floor.position.set(0, 0.12, 0)
+    group.add(floor)
+  }
+
+  // Halo — required from 2018 onwards (era > ~0.55)
+  if (era > 0.55) {
     const halo = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.07, 6, 12, Math.PI), DARK_MAT)
     halo.rotation.x = -Math.PI / 2
     halo.rotation.z = Math.PI

@@ -539,10 +539,15 @@ export function renderBroadcast3D(root: HTMLElement) {
   function pushRadio(entries: RaceSnapshot['radio']) {
     radioFeed.innerHTML = ''
     for (const r of entries.slice(-4)) {
-      radioFeed.appendChild(
-        el('div', { class: `event-line ${r.kind === 'refusal' ? 'big' : ''}` },
-          `📻 ${driverName(r.driverId)}: ${r.message}`),
-      )
+      const car = race?.cars.find((c) => c.driverId === r.driverId)
+      const team = car ? championship?.teams.find((t) => t.id === car.teamId) : null
+      const teamColor = team?.colors.primary ?? 'var(--accent)'
+      const radio = el('div', { class: `b3d-radio-line ${r.kind === 'refusal' ? 'refusal' : ''}` })
+      ;(radio as HTMLElement).style.setProperty('--team-color', teamColor)
+      radio.appendChild(el('span', { class: 'role' }, r.kind === 'refusal' ? '✕ REFUSAL' : 'RADIO'))
+      radio.appendChild(el('span', { class: 'driver' }, driverName(r.driverId).split(' ').pop() ?? ''))
+      radio.appendChild(el('span', { class: 'message' }, r.message))
+      radioFeed.appendChild(radio)
     }
   }
 
