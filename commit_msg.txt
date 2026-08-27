@@ -1,28 +1,41 @@
-feat(weekend): full race-weekend event redesign + new CSS primitives
+feat(results,drivers,standings,staff,facilities,development,sponsors,app): P1 visual rewrite of all in-game team-management screens
 
-- Rewrites src/ui/weekend.ts around the new design system:
-  * .event-header for the circuit + event subtitle + hero stats
-  * visual session timeline (Practice / Qualifying / Race) with
-    status pills and the active session pulsing
-  * visual stint bar that lays out stints proportionally to the
-    circuit's lap count
-  * weather forecast strip (NOW / +5m / +10m / +15m) with rain
-    probability and current-condition
-  * setup axis block showing car attributes vs circuit demands
-  * per-driver setup confidence with helmet and progress bar
-- Adds new CSS primitives to styles.css for the above: .hero-panel
-  reuse, .stint-bar, .stint-legend, .weather-strip, .setup-axis,
-  .driver-agency bars and concerns, .session-row pulse animation,
-  .rulesBlock-style toggleable rule chips.
-- Adds new icon module symbols (iconFrontWing, iconRearWing,
-  iconNose, iconFloor, iconSidepods, iconCooling, iconSuspension,
-  iconHeart, iconFist, iconLock, iconCalendar) to icons.ts.
-- Adds src/ui/renderers.ts with reusable helpers: renderHelmet,
-  renderTeamMark, renderDriverIdentity, renderKpiTile,
-  renderEventHeader, renderEmptyState, renderTeamBar,
-  renderBadge.
-- All existing state wiring (work.strategy, work.setup, practice)
-  preserved; the existing Quick Start → HQ → Race Weekend →
-  Practice → Qualifying → Race flow still works.
+- src/ui/results.ts: chequered-flag hero, full podium (P1
+  gold block, P2 silver, P3 bronze) using the .podium primitive,
+  race-story tile, player-team summary tiles, full classification
+  table with position deltas and team colour blocks.
+- src/ui/drivers.ts: new file. Each driver has a .driver-card
+  with helmet, large typography, rating grid, contract and a
+  .driver-agency block (morale / trust / role / contract /
+  championship-ambition bars + concerns & wins). .driver-relation
+  block shows the two teammates with relationship label and
+  recent causes. Free agents stay in a market table.
+- src/ui/standings.ts: new file. Title-battle card at the top
+  with the top 3 drivers and their points gap. Drivers'
+  Championship table with team-colour block per row. Constructors'
+  table with team-colour block.
+- src/ui/staff.ts: new file. Staff grouped into TECHNICAL / RACE
+  / MANAGEMENT / SPORTING. Each member has a role icon, name,
+  role label, salary, contract and a rating bar. Staff market
+  shows available candidates (hiring not yet implemented in P1).
+- src/ui/facilities.ts: new file. 8 facilities split into
+  ENGINEERING and OPERATIONS sections. Each facility has a
+  facility icon, name, level pips, effect summary and an upgrade
+  button wired to startFacilityUpgrade.
+- src/ui/development.ts: new file. Regulation change banner
+  (2027 Technical Regulation Change) at the top. Two-column body
+  with a procedural car-stage SVG with hotspot buttons for every
+  car module (front wing, nose, floor, suspension, cooling, rear
+  wing) and a current-vs-next-season tradeoff block. Active
+  development projects render in the right column with stats,
+  cost, time and risk. New project tiles use proposeModifiersForSlot.
+- src/ui/sponsors.ts: new file. Sponsors grouped into TITLE
+  PARTNER / MAJOR / TECHNICAL tiers. Each sponsor uses a
+  fictional wordmark and colour (sponsorVisual() helper) and
+  shows payment, contract remaining, expectations and position
+  bonus.
+- src/ui/app.ts: extracted renderFinances, renderNews, and routed
+  to the new files. Finances uses .mini-tile for the burn
+  breakdown.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
