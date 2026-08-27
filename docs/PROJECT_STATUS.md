@@ -1,6 +1,6 @@
 # Pitwall Dynasty — Project Status
 
-Last updated: end of Multiplayer P0 completion pass (2026-08-27).
+Last updated: end of Driver Ecosystem completion pass (2026-08-27).
 
 ## Implemented
 
@@ -167,11 +167,60 @@ Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 - MULTIPLAYER indicator + connection state in the broadcast
 
 ### Tests
-- **118 vitest tests** across 16 files
+- **145 vitest tests** across 17 files (118 + 27 new driver-ecosystem tests)
 - Pure-domain logic, deterministic, fast
 - Two-client WebSocket smoke test in
   `tests/multiplayer-two-client.cjs` (run manually with the
   multiplayer server up)
+
+### Driver Ecosystem (local Career)
+- Three fictional feeder championships: Regional Formula
+  (`base.junior.regional`), Continental Formula
+  (`base.junior.continental`), Aurora Formula (`base.junior.aurora`)
+- Stable series ids, fictional names and emblems, fictional circuits
+- Aurora is a fictional women's development series; it is NOT a
+  lower-talent tier. Gender is identity/context only and never
+  affects driving ability, potential, development, or AI valuation.
+- Aurora is gated by the central `womenSeriesEstablished` flag:
+  career championships starting eraYear ≥ 2014 enable it from the
+  first season; older careers unlock it via the historical event
+  `NEW WOMEN'S DEVELOPMENT CHAMPIONSHIP ANNOUNCED` (Dev Tools).
+- Scouting engine with confidence, band narrowing, and hidden
+  potential exposed as a tier label only
+  (LIMITED / DEVELOPING / GOOD PROSPECT / HIGH POTENTIAL /
+  ELITE PROSPECT / GENERATIONAL TALENT). Dev tools reveal is the
+  only player-visible code path that shows the raw number.
+- Watchlist (`addToWatchlist` / `removeFromWatchlist`) persists in
+  `Championship.scouting.watchlist`
+- Driver Academy with finite slots, real sign / release / promote
+  actions, gender-neutral offer assessment
+- Reserve driver role (top-series-level contract bound to player team)
+- Elite Racing Licence (`SeriesLicence`) granted from feeder results
+  (40+ points, 5+ starts); clear "ELIGIBLE / NOT YET ELIGIBLE — 31/40"
+  UI with reasons
+- Promises / Driver Agency integration: broken promises apply the
+  same `PROMISE_BROKEN` memory event the top championship already uses
+- AI recruitment reuses the same scouting / sign / promote pipeline —
+  no parallel "AI-only" talent system
+- Long-term driver history: `DriverSeasonRecord[]` per driver with
+  `seriesId`, so a feeder career is preserved when the driver is
+  promoted to the top championship
+- Driver Development facility already in HQ affects development
+  speed; existing facility upgrade timers feed the championship tick
+- Feeder ticks are automatic and ride on the main `advanceRound`
+  call. There is no manual "Simulate Junior Round" button
+- `SAVE_SCHEMA_VERSION` bumped from 2 to 3 with a deterministic
+  migration that defaults `gender`, the licence state, and the
+  `womenSeriesEstablished` flag for legacy saves
+- 12-season long-career stress test runs in `tests/driver-ecosystem.test.ts`
+  and confirms grids stay populated, no duplicate driver ids, women
+  are represented in every series, elite female prospects emerge,
+  and the licence system grants status within the loop
+- UI routes: `#/juniors`, `#/series/<id>`, `#/driver/<id>`,
+  `#/watchlist`, `#/academy`, `#/drivers` (race/free/reserves)
+- Dev Tools: ensure feeder, simulate feeder round/season, fund
+  scouting, scout top free agents, advance feeder year, trigger
+  Aurora formation event
 
 ## Partially implemented
 
@@ -211,9 +260,11 @@ Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 
 ## Test count
 
-118/118 passing. TypeScript: clean. Production build: green.
+145/145 passing. TypeScript: clean. Production build: green.
 Two-client smoke test: PASS (shared championship ID, identical
 finishing order, identical standings, both clients advance to R2).
+Driver ecosystem 27 new tests cover gender-neutral talent, feeder
+mechanics, scouting, contracts, and a 12-season stress test.
 
 ## Visual identity (P1 completion)
 

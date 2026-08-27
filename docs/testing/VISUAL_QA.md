@@ -5,6 +5,8 @@ Last updated: Driver Ecosystem pass (2026-08-27).
 This document tracks every committed screenshot and what it verifies.
 The Phase 2 baseline is documented under `docs/testing/screenshots/phase2/`.
 The new Multiplayer P0 set is under `docs/testing/screenshots/multiplayer-p0/`.
+The Driver Ecosystem set is under
+`docs/testing/screenshots/driver-ecosystem/`.
 
 | # | File | Screen | Verifies | Status |
 |---|------|--------|----------|--------|
