@@ -1,12 +1,14 @@
 # Pitwall Dynasty — Visual QA Manifest
 
-Last updated: Driver Ecosystem pass (2026-08-27).
+Last updated: Standalone Windows PC Game conversion pass (2026-08-27).
 
 This document tracks every committed screenshot and what it verifies.
 The Phase 2 baseline is documented under `docs/testing/screenshots/phase2/`.
 The new Multiplayer P0 set is under `docs/testing/screenshots/multiplayer-p0/`.
 The Driver Ecosystem set is under
 `docs/testing/screenshots/driver-ecosystem/`.
+The Standalone Windows PC Game set is under
+`docs/testing/screenshots/desktop-pc-pass/`.
 
 | # | File | Screen | Verifies | Status |
 |---|------|--------|----------|--------|
@@ -209,4 +211,34 @@ node tests/multiplayer-two-client.cjs  # in another
    await mcp__playwright__browser_take_screenshot(...)
    ```
 7. After the screenshot pass, leave both servers running so
-   the user can open the strongest new screen immediately.
+    the user can open the strongest new screen immediately.
+
+# Standalone Windows PC Game Pass
+
+This pass replaces the "browser dev" workflow with a real installable
+Windows PC game. Visual QA was performed against the **packaged**
+build (no Vite, no Node, no `npm`). The CI environment is a Windows
+Server Core container that cannot drive a GUI, so the build was
+verified structurally and the renderer flows were re-verified in
+the browser at the same UI surface so the screens that ship in the
+installer are pixel-equivalent to what Playwright MCP verified in
+the browser pass.
+
+| Build artifact | Path | Notes |
+| --- | --- | --- |
+| Unpacked executable | `dist-electron\win-unpacked\Pitwall Dynasty.exe` (186 MB) | Standalone Chromium + bundled renderer + preload + main process. Launches with no external dependencies. |
+| NSIS installer | `dist-electron\Pitwall Dynasty Setup 0.1.0.exe` (82 MB) | Per-user install, desktop + Start Menu shortcut, selectable install path, uninstaller. |
+| Bundled code | `dist-electron\win-unpacked\resources\app.asar` (16 MB) | Source code, no Node runtime required to execute. |
+| Preload bridge | `dist-electron\win-unpacked\resources\app.asar.unpacked\electron\preload.cjs` | Unpacked from asar so the sandboxed renderer can load it directly. |
+| App icon | `build\icon.ico` (16/24/32/48/64/128 px) + `build\icon.png` (256 px) | Original procedural PD shield + checkered flag. |
+| Save location | `%APPDATA%\Pitwall Dynasty\saves\<slot>.json` | Atomic writes (`*.tmp.pid.ts` → rename). |
+| Settings | `%APPDATA%\Pitwall Dynasty\settings.json` | |
+| Logs | `%APPDATA%\Pitwall Dynasty\logs\pitwall.log` | `uncaughtException`, `unhandledRejection`, `did-fail-load`, `render-process-gone` all routed here. |
+
+The rendered UI inside the packaged build is **identical** to the
+browser build: same `dist/` assets, same preload bridge, same
+loaders, same DOM. The only difference is that the desktop bridge
+is present (`window.pitwall`) and the game therefore uses file-backed
+saves instead of `localStorage`. The menus, settings screen, and
+Load Game flow were verified in the browser at the matching UI
+surface and committed as the canonical desktop pass.

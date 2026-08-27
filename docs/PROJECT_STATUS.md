@@ -1,6 +1,6 @@
 # Pitwall Dynasty — Project Status
 
-Last updated: end of Driver Ecosystem completion pass (2026-08-27).
+Last updated: end of Standalone Windows PC Game conversion pass (2026-08-27).
 
 ## Implemented
 
@@ -173,6 +173,48 @@ Last updated: end of Driver Ecosystem completion pass (2026-08-27).
   `tests/multiplayer-two-client.cjs` (run manually with the
   multiplayer server up)
 
+### Standalone Windows PC Game (Electron)
+- `electron/main.cjs` — secure main process: app lifecycle, single
+  instance lock, BrowserWindow with secure defaults (nodeIntegration
+  off, contextIsolation on, sandbox on, webSecurity on), strict CSP
+  header, navigation guards, external-link whitelist (`https:` only),
+  default Electron menu removed in production, logging in
+  `%APPDATA%\Pitwall Dynasty\logs\pitwall.log`, crash handlers for
+  `uncaughtException`, `unhandledRejection`, `render-process-gone`.
+- `electron/preload.cjs` — sandboxed preload. Exposes a strictly
+  typed `window.pitwall.*` API to the renderer through
+  `contextBridge` only. All IPC channels are explicitly named; all
+  inputs are validated type-and-size.
+- `src/platform/persistence` — `SaveRepository` and
+  `SettingsRepository` interfaces with a desktop implementation
+  (file-backed, atomic writes) and a browser implementation
+  (localStorage). The renderer code does not care which one is
+  active. Saves land in `%APPDATA%\Pitwall Dynasty\saves\`.
+- `src/ui/load-game.ts` and `src/ui/settings.ts` — real PC-game
+  menu (Continue / Load Game / Settings / Multiplayer / Quit) and a
+  settings screen (Display / Graphics / Audio / Multiplayer /
+  Keyboard).
+- `electron-builder` v25 produces a Windows NSIS installer
+  (`Pitwall Dynasty Setup 0.1.0.exe`, ~82 MB) and a portable
+  unpacked build (`dist-electron\win-unpacked\Pitwall Dynasty.exe`,
+  ~186 MB). Build commands: `npm run desktop:dev`,
+  `npm run desktop:package`.
+- app id `fi.baneworks.pitwalldynasty`, product name `Pitwall
+  Dynasty`, publisher BaneWorks. Original procedural PD-mark icon
+  at 16, 24, 32, 48, 64, 128 px.
+- Single instance: launching twice focuses the existing window.
+- The authoritative multiplayer server is **not** embedded in the
+  packaged game. Online play connects to a configurable external
+  endpoint. Default `ws://localhost:8080`. Singleplayer / local
+  Career works fully offline.
+- Clean-machine verification: the packaged build runs without a
+  Vite dev server, without `node_modules` next to it, and without
+  `npm` installed. The only required runtime is the bundled
+  Chromium in the installer.
+- `tests/desktop-platform.test.ts` — 8 tests covering the
+  repository abstraction, save schema round-tripping, schema
+  migration, and atomic write contract. 153/153 vitest tests pass.
+
 ### Driver Ecosystem (local Career)
 - Three fictional feeder championships: Regional Formula
   (`base.junior.regional`), Continental Formula
@@ -260,11 +302,12 @@ Last updated: end of Driver Ecosystem completion pass (2026-08-27).
 
 ## Test count
 
-145/145 passing. TypeScript: clean. Production build: green.
-Two-client smoke test: PASS (shared championship ID, identical
-finishing order, identical standings, both clients advance to R2).
-Driver ecosystem 27 new tests cover gender-neutral talent, feeder
-mechanics, scouting, contracts, and a 12-season stress test.
+153/153 passing (118 baseline + 27 driver-ecosystem + 8 desktop-platform).
+TypeScript: clean. Production build: green.
+Two-client multiplayer smoke test: PASS (shared championship ID,
+identical finishing order, identical standings, both clients
+advance to R2). Packaged Windows build: `Pitwall Dynasty Setup
+0.1.0.exe` produced via `npm run desktop:package`.
 
 ## Visual identity (P1 completion)
 

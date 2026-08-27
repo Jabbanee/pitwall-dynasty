@@ -29,6 +29,8 @@ material is explicitly excluded.
 | Driver helmet CSS | `var(--helmet-base)` / `var(--helmet-stripe)` / `var(--helmet-text)` parameterised | CSS | Original |
 | Era-distinct 3D cars | `src/ui/three/car3d.ts` — width/height/halo vary with eraFactor | WebGL | Original, procedural |
 | Icon set | `src/ui/icons.ts` | inline SVG | Original |
+| Application icon (Windows .ico) | `scripts/make-icon-128.ps1` (procedural PD shield + checkered flag) → `build/icon.ico` (16, 24, 32, 48, 64, 128 px) and `build/icon.png` (256 px) | raster | Original, procedural |
+| Application icon source SVG | `build/icon.svg` (reference only) | SVG | Original, not bundled at runtime |
 
 ## Fictional brand identity
 
