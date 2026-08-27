@@ -158,4 +158,5 @@ export function promoteAcademyToReserve(
   return { ok: true, reason: 'Promoted to reserve.' }
 }
 
-void ({} as import('../core/types').DriverGender)
+/** Alias — same operation; the user-facing label says "to top team". */
+export const promoteToTopTeam = promoteReserveToRace

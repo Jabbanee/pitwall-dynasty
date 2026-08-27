@@ -14,8 +14,13 @@ export function tickFeeder(champ: Championship): string[] {
   for (const seriesId of order) {
     const state = champ.feeder[seriesId]
     if (!state) continue
-    // Women's series is gated to era >= 2014 in Real Career.
-    if (state.config.establishedSeason > champ.config.season) continue
+    // The women's series is gated by `womenSeriesEstablished` or
+    // by the eraYear threshold. The historical formation event
+    // can flip the flag earlier than the era gate.
+    if (state.config.tier === 'women') {
+      const eraOk = (champ.config.eraYear ?? 0) >= 2014
+      if (!champ.womenSeriesEstablished && !eraOk) continue
+    }
     if (state.currentRoundIndex >= state.config.rounds) {
       // Season-end
       const driverPts = new Map<string, number>()
@@ -82,15 +87,28 @@ export function tickFeeder(champ: Championship): string[] {
  *  initialised. Idempotent. */
 export function ensureFeeder(champ: Championship): void {
   if (champ.mode !== 'career') return
-  const feeder = (champ.feeder ?? (champ.feeder = {} as Record<string, SeriesState>)) as Record<string, SeriesState>
-  const ids: string[] = ['base.junior.regional', 'base.junior.continental', 'base.junior.aurora']
+  if (!champ.feeder) champ.feeder = {} as Record<SeriesId, SeriesState>
+  const feeder = champ.feeder as Record<string, SeriesState>
+  const ids: SeriesId[] = ['base.junior.regional', 'base.junior.continental', 'base.junior.aurora']
   for (const id of ids) {
-    const existing = feeder[id]
+    const existing: SeriesState | undefined = feeder[id]
     if (existing) continue
     if (id === 'base.junior.aurora') {
       if (champ.config.eraYear === undefined || champ.config.eraYear < 2014) continue
     }
-    const established = (existing as SeriesState | undefined)?.config.establishedSeason ?? 1
-    feeder[id] = openSeries(id as SeriesId, champ.rngSeed, established)
+    const established: number = (existing as SeriesState | undefined)?.config.establishedSeason ?? 1
+    feeder[id] = openSeries(id, champ.rngSeed, established, champ)
   }
+}
+
+/** Activate the women's development championship in an existing
+ *  save. Used when the historical event fires mid-career. */
+export function activateWomenSeries(champ: Championship): boolean {
+  if (champ.womenSeriesEstablished) return false
+  if (!champ.feeder) champ.feeder = {} as Record<SeriesId, SeriesState>
+  const feeder = champ.feeder as Record<string, SeriesState>
+  if (feeder['base.junior.aurora']) return false
+  feeder['base.junior.aurora'] = openSeries('base.junior.aurora', champ.rngSeed ^ 0xa907, 2014, champ)
+  champ.womenSeriesEstablished = true
+  return true
 }

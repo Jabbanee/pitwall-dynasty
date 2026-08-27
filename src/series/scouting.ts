@@ -1,11 +1,15 @@
-import type { Championship, Driver, DriverGender, PotentialTier, ScoutReport, WatchEntry } from '../core/types'
+import type { Championship, Driver, PotentialTier, ScoutReport, WatchEntry } from '../core/types'
 
 /** Scouting is a persistent engine. The player pays weeks of
  *  investment via the "fund scouting" action. Each week of funding
  *  increases every report's confidence (capped at 1.0). The
  *  confidence determines the width of the visible band. The true
  *  `hidden.potential` is never shown numerically — only a tier
- *  label. */
+ *  label.
+ *
+ *  Scouting is fully gender-neutral: the tier and confidence
+ *  derivation does NOT inspect `driver.gender`. The tier mapping
+ *  is bucketed from `hidden.potential` only. Tested by tests/. */
 
 const BASE_BAND_WIDTH = 8
 const MIN_BAND_WIDTH = 1
@@ -170,5 +174,3 @@ export function tierBadgeColor(t: PotentialTier): string {
     case 'Generational Talent': return 'var(--accent)'
   }
 }
-
-void ({} as DriverGender)

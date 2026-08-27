@@ -1,8 +1,7 @@
-import type { CarRaceResult, Circuit, Driver, DriverSeasonRecord, JuniorTeam, SeriesConfig, SeriesId, SeriesState } from '../core/types'
+import type { CarRaceResult, Championship, Driver, DriverSeasonRecord, JuniorTeam, SeriesId, SeriesState } from '../core/types'
 import { FEEDER_CATALOG, FEEDER_CIRCUITS, generateJuniorRoster, makeJuniorTeam } from './catalog'
 import { generateRookie, NAME_POOLS } from '../core/content'
 import { createRng } from '../core/rng'
-import type { Rng } from '../core/rng'
 
 /** Deterministic lightweight feeder race simulation. Uses an
  *  aggregate skill model — not the full LiveRaceEngine — so we can
@@ -40,15 +39,17 @@ export function newSeriesState(seriesId: SeriesId, seed: number): SeriesState {
   }
 }
 
-void ({} as { config: SeriesConfig, circuit: Circuit, _rng: Rng })
-
 /** Open a series for a given championship. Generates the opening
  *  grid of teams and drivers using the catalog. Deterministic
- *  given (seriesId, championshipSeed). */
+ *  given (seriesId, championshipSeed). Drivers are also merged into
+ *  the parent championship so they show up in the global driver
+ *  pool, the watchlist, the licence list, and the AI recruitment
+ *  pipeline. */
 export function openSeries(
   seriesId: SeriesId,
   championshipSeed: number,
   establishedSeason: number,
+  parent?: Championship,
 ): SeriesState {
   const config = FEEDER_CATALOG[seriesId]
   if (!config) throw new Error(`Unknown feeder series: ${seriesId}`)
@@ -74,6 +75,7 @@ export function openSeries(
       d.firstName = pool.first[Math.floor(r.next() * pool.first.length)]
       d.lastName = pool.last[Math.floor(r.next() * pool.last.length)]
       d.id = `${seriesId}.d.${i}.${s}`
+      d.eligibility = { driverId: d.id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] }
       d.academyContract = {
         teamId: team.id,
         signedSeason: establishedSeason,
@@ -82,6 +84,12 @@ export function openSeries(
       }
       drivers[d.id] = d
       team.driverIds.push(d.id)
+      if (parent) {
+        // Avoid collisions if a driver with the same id already exists
+        if (!parent.drivers[d.id]) {
+          parent.drivers[d.id] = d
+        }
+      }
     }
   }
   state.teams = teams
@@ -275,11 +283,14 @@ export function endSeason(state: SeriesState, season: number, seasonResults: { d
     relegated.push(...tail)
   }
 
-  // Persist to driver.history
-  for (const [id, points] of seasonResults.driverPts.entries()) {
-    const d = state.drivers[id]
-    if (!d) continue
-    const team = d.academyContract?.teamId ?? d.contract?.teamId ?? null
+  // Persist to driver.history. We record EVERY driver that competed
+  // in the series, not just the ones who scored — drivers with zero
+  // points still get a position-based record so the career history
+  // grows even for backmarkers.
+  for (const [id, driver] of Object.entries(state.drivers)) {
+    if (!driver) continue
+    const points = seasonResults.driverPts.get(id) ?? 0
+    const team = driver.academyContract?.teamId ?? driver.contract?.teamId ?? null
     const record: DriverSeasonRecord = {
       season,
       seriesId: state.config.id,
@@ -290,9 +301,9 @@ export function endSeason(state: SeriesState, season: number, seasonResults: { d
       poles: 0,
       fastestLaps: 0,
       points,
-      championshipPosition: sorted.findIndex(([d2]) => d2 === id) + 1,
+      championshipPosition: sorted.findIndex(([d2]) => d2 === id) + 1 || sorted.length + 1,
     }
-    d.history.push(record)
+    driver.history.push(record)
   }
 
   // Persist history

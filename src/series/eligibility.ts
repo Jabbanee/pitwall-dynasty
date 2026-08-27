@@ -1,6 +1,5 @@
 import type { Championship, Driver, SeriesLicence } from '../core/types'
 import { addNews } from '../championship/engine'
-import { computeFeederStandings } from './feederSim'
 import { FEEDER_CATALOG } from './catalog'
 
 /** Pure function. Returns the licence state for a driver from
@@ -120,5 +119,3 @@ export function promoteToTopTeam(
   addNews(champ, 'PROMOTED', `${driver.lastName} promoted to the top series race seat at ${team.name}.`)
   return { ok: true, reason: 'Promoted.' }
 }
-
-void computeFeederStandings
