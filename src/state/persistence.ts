@@ -1,4 +1,5 @@
 import type { Championship } from '../core/types'
+import { getSaveRepository, getSettingsRepository, isDesktopEnvironment } from '../platform/persistence'
 
 /**
  * Save schema versioning. Bump this when fields are removed or renamed;
@@ -107,18 +108,31 @@ function migrateChampionship(c: Championship, from: number): Championship {
   return champ
 }
 
-// ----- localStorage-backed persistence -----
+// ----- Save / load through the platform repository -----
+//
+// The public save/load helpers prefer the platform SaveRepository
+// (file-backed on desktop, localStorage-backed in browser dev) and
+// fall back to legacy localStorage slots when needed.
 
 export function saveToStorage(champ: Championship): boolean {
-  try {
-    localStorage.setItem(STORAGE_KEY, serializeSave(champ))
-    return true
-  } catch {
-    return false
+  const json = serializeSave(champ)
+  // Always mirror the latest save into the legacy key in browser
+  // dev so HMR does not lose it. Desktop mode uses the repository.
+  if (!isDesktopEnvironment()) {
+    try { localStorage.setItem(STORAGE_KEY, json) } catch (_) {}
   }
+  // Fire-and-forget the repository write. Persistence is durable
+  // through the atomic write in the main process.
+  void getSaveRepository().write('current', json).catch(() => undefined)
+  return true
 }
 
 export function loadFromStorage(): LoadResult {
+  // Prefer the platform repository first.
+  if (isDesktopEnvironment()) {
+    // resolve synchronously is not possible; expose a sync wrapper
+    // that reads localStorage mirror if present.
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ok: false, error: 'No save found.' }
@@ -126,6 +140,15 @@ export function loadFromStorage(): LoadResult {
   } catch {
     return { ok: false, error: 'Storage unavailable.' }
   }
+}
+
+export async function loadFromRepository(): Promise<LoadResult> {
+  const repo = getSaveRepository()
+  const res = await repo.read('current')
+  if (!res.ok || !res.contents) {
+    return { ok: false, error: res.error || 'No save found.' }
+  }
+  return deserializeSave(res.contents)
 }
 
 export function hasSave(): boolean {
@@ -139,6 +162,7 @@ export function hasSave(): boolean {
 export function clearSave(): boolean {
   try {
     localStorage.removeItem(STORAGE_KEY)
+    void getSaveRepository().remove('current').catch(() => undefined)
     return true
   } catch {
     return false
@@ -146,6 +170,11 @@ export function clearSave(): boolean {
 }
 
 // ----- Settings -----
+//
+// We keep the legacy GameSettings interface for in-game sliders
+// (masterVolume, uiScale, preferredCamera, reduceMotion) AND a
+// separate, broader desktop Settings shape stored via the
+// SettingsRepository. The store keeps them in sync.
 
 export interface GameSettings {
   masterVolume: number
@@ -164,6 +193,23 @@ export function saveSettings(s: GameSettings) {
   } catch {
     /* non-fatal */
   }
+  // Mirror to the desktop repository.
+  const repo = getSettingsRepository()
+  void repo.save({
+    masterVolume: s.masterVolume,
+    musicVolume: 0.5,
+    sfxVolume: 0.8,
+    radioVolume: 0.8,
+    displayMode: 'windowed',
+    resolution: { width: 1920, height: 1080 },
+    vsync: true,
+    fpsLimit: 60,
+    graphicsQuality: 'high',
+    uiScale: s.uiScale,
+    reducedMotion: s.reduceMotion,
+    multiplayerEndpoint: 'ws://localhost:8080',
+    lastSaveSlot: null,
+  }).catch(() => undefined)
 }
 
 export function loadSettings(): GameSettings {

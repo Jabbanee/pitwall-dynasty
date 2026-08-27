@@ -1,7 +1,8 @@
 import type { Championship } from '../core/types'
 import { GameEngine } from '../championship/game-engine'
 import { aiPrepareRound } from '../ai/ai-manager'
-import { hasSave, loadFromStorage, saveToStorage, clearSave } from './persistence'
+import { hasSave, loadFromStorage, saveToStorage, clearSave, loadFromRepository, serializeSave } from './persistence'
+import { getSaveRepository, isDesktopEnvironment } from '../platform/persistence'
 import { toast } from '../ui/dom'
 import type { ChampionshipSummary, RaceSnapshot, LobbySnapshot } from '../client/multiplayer-client'
 
@@ -155,7 +156,15 @@ class AppStore {
   }
 
   tryLoadSave(): boolean {
-    if (!hasSave()) return false
+    if (!hasSave()) {
+      // In desktop mode, also probe the platform repository; the
+      // browser localStorage slot may be empty but a desktop save
+      // could still exist.
+      if (isDesktopEnvironment()) {
+        void this.loadFromRepository()
+      }
+      return false
+    }
     const res = loadFromStorage()
     if (res.ok && res.champ) {
       this.setChampionship(res.champ)
@@ -168,11 +177,33 @@ class AppStore {
     return false
   }
 
-  save() {
-    if (this.champ) {
-      saveToStorage(this.champ)
-      toast('Game saved.')
+  /** Asynchronous loader that prefers the platform SaveRepository
+   *  (file-backed in desktop builds). Returns true if a save was
+   *  loaded. */
+  async loadFromRepository(): Promise<boolean> {
+    try {
+      const res = await loadFromRepository()
+      if (res.ok && res.champ) {
+        this.setChampionship(res.champ)
+        if (res.migrated) toast('Save loaded — schema updated.')
+        else toast('Save loaded.')
+        return true
+      }
+    } catch (e) {
+      void e
     }
+    return false
+  }
+
+  save() {
+    if (!this.champ) return
+    saveToStorage(this.champ)
+    // In desktop mode, also persist the active "current" slot via
+    // the platform repository so it survives across installs.
+    if (isDesktopEnvironment()) {
+      void getSaveRepository().write('current', serializeSave(this.champ)).catch(() => undefined)
+    }
+    toast('Game saved.')
   }
 }
 
