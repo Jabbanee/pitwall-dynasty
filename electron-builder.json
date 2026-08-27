@@ -1,0 +1,42 @@
+{
+  "appId": "fi.baneworks.pitwalldynasty",
+  "productName": "Pitwall Dynasty",
+  "copyright": "Copyright © 2026 BaneWorks",
+  "directories": {
+    "output": "dist-electron",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/main.cjs",
+    "electron/preload.cjs",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "dir",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build/icon.png",
+    "artifactName": "Pitwall Dynasty Setup ${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Pitwall Dynasty",
+    "deleteAppDataOnUninstall": false
+  },
+  "asar": true,
+  "asarUnpack": [
+    "electron/preload.cjs"
+  ]
+}
