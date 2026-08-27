@@ -1,5 +1,5 @@
 import { createRng, fnv1a } from '../core/rng'
-import { SPONSORS } from '../core/content'
+import { SPONSORS, generateRookie } from '../core/content'
 import {
   PART_SLOTS,
   PART_SLOT_NAMES,
@@ -536,12 +536,18 @@ export function endSeason(champ: Championship): { championDriver: string; champi
     while (team.driverIds.length < 2) missingSeats.push({ team, seat: team.driverIds.length })
   }
   let rookieSeed = champ.rngSeed ^ (champ.config.season * 2654435761)
+  let rookieGenderToggle = 0
   for (const seat of missingSeats) {
-    const rookie = generateRookieDeterministic(rookieSeed, champ.config.season)
+    // Pick gender from the same seed so the distribution is
+    // deterministic per championship+season but realistic (~50/50
+    // for the top series). The talent pipeline is identical.
+    const gender = (rookieSeed & 1) === 0 ? 'male' : 'female'
+    const rookie = generateRookie(rookieSeed >>> 0, champ.config.season, gender as 'male' | 'female')
     champ.drivers[rookie.id] = rookie
     rookie.contract = { teamId: seat.team.id, salaryPerSeason: rookie.salaryDemandBase, seasonsRemaining: 2, signedSeason: champ.config.season }
     seat.team.driverIds.push(rookie.id)
     rookieSeed = (rookieSeed * 1103515245 + 12345) >>> 0
+    rookieGenderToggle++
   }
 
   for (const st of champ.staffPool) {
@@ -599,43 +605,6 @@ function developDriver(champ: Championship, d: Driver) {
 
 function clampN(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
-}
-
-function generateRookieDeterministic(seed: number, season: number): import('../core/types').Driver {
-  // Local deterministic rookie generator (mirrors core/content.generateRookie but standalone to avoid cycles)
-  const rng = createRng(seed)
-  const FIRST = ['Noah', 'Liam', 'Oscar', 'Hugo', 'Ravi', 'Kaito', 'Mateus', 'Viktor', 'Amir', 'Bruno', 'Theo', 'Elias']
-  const LAST = ['Reyes', 'Kowalski', 'Tanaka', 'Duarte', 'Sharma', 'Yamada', 'Costa', 'Volkov', 'Nazari', 'Berg', 'Almeida', 'Moreau']
-  const NATS = ['ESP', 'POL', 'JPN', 'POR', 'IND', 'BRA', 'SWE', 'FRA', 'USA', 'GER', 'MEX', 'AUS']
-  const paceBase = rng.range(62, 74)
-  const pot = Math.min(97, paceBase + rng.range(8, 26))
-  const id = `gen.driver.${season}.${seed.toString(36)}`
-  return {
-    id,
-    firstName: rng.pick(FIRST),
-    lastName: rng.pick(LAST),
-    nationality: rng.pick(NATS),
-    age: rng.int(18, 23),
-    gender: 'male',
-    visible: {
-      pace: Math.round(paceBase), qualifying: Math.round(paceBase + rng.gauss(1)),
-      racecraft: Math.round(paceBase - rng.range(2, 6)), overtaking: Math.round(paceBase + rng.gauss(0)),
-      defending: Math.round(paceBase - rng.range(3, 8)), consistency: Math.round(paceBase - rng.range(2, 7)),
-      wetSkill: Math.round(rng.range(58, 80)), tyreManagement: Math.round(paceBase - rng.range(1, 5)),
-      feedback: Math.round(rng.range(58, 78)),
-    },
-    hidden: {
-      potential: Math.round(pot), pressureResistance: Math.round(rng.range(52, 80)),
-      aggression: Math.round(rng.range(40, 85)), adaptability: Math.round(rng.range(50, 85)),
-      loyalty: Math.round(rng.range(35, 80)), ego: Math.round(rng.range(30, 80)),
-      confidenceSensitivity: Math.round(rng.range(40, 80)), developmentRate: Math.round(rng.range(55, 90)),
-      declineRate: Math.round(rng.range(35, 60)),
-    },
-    dynamic: { morale: 65, confidence: 55, form: 0, fatigue: 0, seasonsWithTeam: 0 },
-    salaryDemandBase: Math.round(rng.range(900, 2400)),
-    history: [],
-    eligibility: { driverId: id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
-  }
 }
 
 // ---------------------------------------------------------------------------
