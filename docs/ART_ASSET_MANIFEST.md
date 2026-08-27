@@ -19,7 +19,15 @@ material is explicitly excluded.
 | `.team-mark` brand block | `src/ui/styles.css` `.team-mark` | CSS only | Original, team colour driven |
 | `.podium` step block | `src/ui/styles.css` `.podium` | CSS only | Original |
 | `.team-bar` / `.team-stripe` accent | `src/ui/styles.css` | CSS | Original |
-| Paddock Post hero image | procedural SVG (placeholder in `paddock-post.ts`) | SVG | Original |
+| Paddock Post hero image | procedural SVG (race report hero with circuit outline, podium blocks, team colour) | SVG | Original, data-driven |
+| Race Weekend circuit thumbnail | procedural SVG per circuit id, stable hash → bezier path | SVG | Original |
+| Hero panel circuit preview | procedural SVG with sector markers (S1/S2/S3) and SF/FINISH pin | SVG | Original |
+| Stint bar timeline | CSS-only horizontal stint layout with start/middle/end colour | CSS | Original |
+| Weather forecast strip | CSS-only 4-cell grid (NOW/+5m/+10m/+15m) | CSS | Original |
+| Regulation banner | CSS gold-accent callout with readiness bar | CSS | Original |
+| Sponsor wordmark | colour block + short name from id | CSS | Original |
+| Driver helmet CSS | `var(--helmet-base)` / `var(--helmet-stripe)` / `var(--helmet-text)` parameterised | CSS | Original |
+| Era-distinct 3D cars | `src/ui/three/car3d.ts` — width/height/halo vary with eraFactor | WebGL | Original, procedural |
 | Icon set | `src/ui/icons.ts` | inline SVG | Original |
 
 ## Fictional brand identity

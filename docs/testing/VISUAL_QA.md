@@ -97,6 +97,40 @@ each screenshot's caption so the same race can be cross-referenced.
   (verified in `multiplayer-two-client.cjs` by comparing the
   server-pushed `results` array character-by-character).
 
+# P1 Visual Completion Pass
+
+The design system, menu, HQ and multiplayer lobby were established
+in the previous pass. P1 finishes the visual transformation of
+every remaining in-game team-management screen, applies the
+new primitives consistently in the 3D broadcast, and completes
+Paddock Post as a real editorial publication.
+
+| File | Screen | What changed | Status |
+| --- | --- | --- | --- |
+| `visual-completion-p1/01-race-weekend.png` | Race Weekend | .event-header with circuit thumbnail, session timeline rows, visual stint bar, weather forecast strip, setup axis block, per-driver setup confidence with helmet | PASS |
+| `visual-completion-p1/03-team-hq.png` | Team HQ | Full hero next-event card with circuit preview, KPI strip, paddock news, calendar, constructors, development | PASS |
+| (other 23 screens) | All in-game screens | Same primitives applied; see `docs/PROJECT_STATUS.md` for the full list | PASS |
+
+## Key visual primitives introduced in P1
+
+- `.hero-panel` — focal next-event card with circuit thumbnail
+- `.event-header` — race weekend event header
+- `.session-list` / `.session-row` — visual session timeline
+- `.driver-card` — driver identity with helmet
+- `.driver-agency` — agency bars and concerns
+- `.driver-relation` — teammate relationship module
+- `.car-shop` / `.car-stage` / `.car-project` / `.hotspot` — development
+- `.season-tradeoff` — current vs next season
+- `.regulation-banner` — regulation change callout
+- `.facility` / `.facility-grid` — facility cards with level pips
+- `.sponsor-tier` / `.sponsor` — sponsor brand blocks
+- `.title-battle` — championship title-battle card
+- `.podium` — chequered-flag podium
+- `.paddock` — editorial publication
+- `.driver-quote` — pull-quote for driver quotes
+- `.b3d-follow-strip` / `.b3d-timing` / `.b3d-radio-line` — broadcast chrome
+- `.kv-grid` / `.mini-tile` — telemetry modules
+
 ## Headless two-client WebSocket verification
 
 `tests/multiplayer-two-client.cjs` runs without a browser. It opens

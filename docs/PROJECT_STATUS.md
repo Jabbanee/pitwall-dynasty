@@ -184,11 +184,14 @@ Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 ## Remaining
 
 - Full era-specific car geometry (halo / sidepod / engine cover
-  distinct for 1980 vs 2022) — eraFactor wiring is in place but
-  the visual delta is subtle; a future pass should add distinct
-  nose and wing silhouettes per era.
+  distinct for 1980 vs 2022) — eraFactor wiring is in place.
+  P1 visibly differentiates 1980 vs 2022 silhouettes; further
+  refinement of nose and wing profiles per era is a follow-up.
 - AI fill paddock for solo / local play could use more variety
   (career personality archetypes).
+- Staff hiring and facility upgrade timer are UI-present but
+  not fully wired to a championship action yet (P1 lays out the
+  screens; wiring is a small follow-up).
 
 ## Known issues
 
@@ -212,7 +215,7 @@ Last updated: end of Multiplayer P0 completion pass (2026-08-27).
 Two-client smoke test: PASS (shared championship ID, identical
 finishing order, identical standings, both clients advance to R2).
 
-## Visual identity (P1)
+## Visual identity (P1 completion)
 
 The UI was redesigned as a proper PC motorsport management game:
 
@@ -225,13 +228,38 @@ The UI was redesigned as a proper PC motorsport management game:
   stat grid.
 - New multiplayer lobby layout (focal code panel + player slots).
 - New broadcast chrome: driver follow strip, broadcast timing
-  tower, team-colour-stripped driver rows.
+  tower, team-colour-stripped driver rows, .b3d-radio-line with
+  team-colour stripe.
 - New podium presentation with P1/P2/P3 rank gradients.
-- New Paddock Post masthead and editorial layout.
+- New Paddock Post masthead with procedural hero SVG and
+  .driver-quote pull-quotes.
 - New icon set in `src/ui/icons.ts` (all original, inline SVG).
-- See `docs/VISUAL_STYLE_GUIDE.md` and
-  `docs/ART_ASSET_MANIFEST.md` for the design contract and asset
-  inventory.
+- Reusable renderers in `src/ui/renderers.ts` (renderHelmet,
+  renderTeamMark, renderDriverIdentity, renderKpiTile,
+  renderEventHeader, renderEmptyState, renderTeamBar, renderBadge).
+- Race Weekend rewritten with .event-header, visual session
+  timeline, stint bar timeline, weather forecast strip and
+  setup axis block.
+- Results rewritten with chequered-flag hero, .podium block,
+  race story, player team summary and full classification.
+- Drivers rewritten with .driver-card, .driver-agency bars and
+  .driver-relation block.
+- Car Development rewritten with procedural car-stage SVG,
+  .hotspot module buttons, current-vs-next-season tradeoff and
+  regulation change banner.
+- Facilities, Staff, Sponsors and Standings rewritten with the
+  new primitives. Sponsors split into TITLE / MAJOR / TECHNICAL
+  tiers.
+- New / Fictional career setup is now a cinematic two-card
+  selection with .era-strip and an era-summary card showing the
+  regulations that change between eras.
+- 3D cars now visibly differ between 1980 (narrow, tall airbox,
+  tall rear wing, no halo) and 2022 (wide, low airbox, ground-
+  effect floor, halo, low rear wing).
+
+See `docs/VISUAL_STYLE_GUIDE.md` and
+`docs/ART_ASSET_MANIFEST.md` for the design contract and asset
+inventory.
 
 ## Last QA
 

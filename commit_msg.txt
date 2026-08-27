@@ -1,28 +1,18 @@
-feat(career,paddock,car3d,broadcast): cinematic career/era selection, Paddock editorial hero, era-distinct 3D cars, broadcast radio with team colour
+docs(qa,status,art-asset): P1 visual completion documentation
 
-- src/ui/new-championship.ts: full rewrite. Real / Fictional
-  career choice uses .career-choice two-card layout. Era strip
-  uses .era-strip with 7 large era tiles. Selected era shows an
-  era-summary card using .kv-grid with the relevant regulations
-  (team orders, position swaps, qualifying, refuelling, compound
-  count, points, cost cap, safety car). Common options (team
-  count, races, management time, weather, equal teams) use the
-  existing .slider-row / .seg-group primitives.
-- src/ui/paddock-post.ts: lead story now includes a procedural
-  hero SVG (circuit + podium blocks with the winner's team
-  colour + golden P2 + bronze P3), and the driver-quotes section
-  now uses the new .driver-quote pull-quote primitive in a 3-up
-  grid.
-- src/ui/three/car3d.ts: increased era contrast. 1980s = narrow
-  chassis, slim nose, tall airbox, tall rear wing, no halo, no
-  floor. 2022 = wide chassis + nose, low airbox, low rear wing,
-  halo, ground-effect floor. Sidepod and front-wing width also
-  scale with era. The 1980 vs 2022 silhouette is now visibly
-  different in a 3/4 view.
-- src/ui/three/broadcast3d.ts: radio feed now uses the
-  .b3d-radio-line primitive with team-colour stripe, RADIO /
-  REFUSAL role pill, driver surname and message. Positioning CSS
-  for .b3d-timing and .b3d-battle-stack already places them so
-  they do not overlap on a 1920x1080 viewport.
+- docs/PROJECT_STATUS.md: add Visual identity (P1 completion)
+  section that lists every in-game screen rewritten in P1, every
+  new CSS primitive, and the era-distinct 3D car preview. Replace
+  the P1 "subtle" note with a P1-completion note and tighten the
+  Remaining list to genuinely open follow-ups.
+- docs/testing/VISUAL_QA.md: add a "P1 Visual Completion Pass"
+  table and a "Key visual primitives introduced in P1" index
+  inside the existing QA doc.
+- docs/ART_ASSET_MANIFEST.md: add rows for the new procedural
+  assets (Race Weekend circuit thumbnail, hero panel circuit
+  preview, stint bar timeline, weather forecast strip, regulation
+  banner, sponsor wordmark, driver helmet CSS, era-distinct 3D
+  cars). All original / data-driven / CSS or inline SVG. No
+  third-party or copyrighted material.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
