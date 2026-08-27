@@ -1,6 +1,6 @@
 # Pitwall Dynasty — Visual QA Manifest
 
-Last updated: end of Multiplayer P0 completion pass (2026-08-27).
+Last updated: Driver Ecosystem pass (2026-08-27).
 
 This document tracks every committed screenshot and what it verifies.
 The Phase 2 baseline is documented under `docs/testing/screenshots/phase2/`.
@@ -168,3 +168,43 @@ node tests/multiplayer-two-client.cjs  # in another
   The two-client UI verification therefore uses one Playwright
   tab + one raw WebSocket client; this exercises the real
   cross-client path against the authoritative server.
+
+## Visual QA restart procedure (reliable, no stale cache)
+
+1. Check for stale dev / preview / MP servers:
+   ```
+   powershell -Command "Get-NetTCPConnection -State Listen | Where-Object LocalPort -in 5175,8080 | Select-Object LocalPort"
+   ```
+   If any port is in use by an old build, `kill_shell` the task
+   that owns it. The previous P1 pass reported screenshot loss
+   because `npx vite preview` was running on an old `dist/` build.
+2. Confirm the current commit and that the tree is clean:
+   ```
+   git status && git log --oneline -3
+   ```
+3. Run the regression before screenshots:
+   ```
+   npx tsc --noEmit
+   npx vitest run
+   ```
+4. Build so `dist/` is current (only needed if you intend to
+   serve via `vite preview`; this pass uses `vite dev` instead):
+   ```
+   npm run build
+   ```
+5. Start the frontend as a dev server (do **not** use
+   `vite preview` for screenshots — it caches the previous
+   `dist/` build and the P1 pass lost screenshots because of
+   this):
+   ```
+   npx vite --port 5175 --strictPort
+   ```
+6. For Playwright MCP screenshots, force a cache buster on the
+   URL and a hard reload between captures:
+   ```
+   await page.goto('http://localhost:5175/?v=' + Date.now() + '#/juniors')
+   await page.reload({ waitUntil: 'networkidle' })
+   await mcp__playwright__browser_take_screenshot(...)
+   ```
+7. After the screenshot pass, leave both servers running so
+   the user can open the strongest new screen immediately.

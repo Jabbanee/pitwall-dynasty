@@ -4,11 +4,13 @@ import type { Driver } from '../src/core/types'
 
 const fakeDriver = (over: Partial<Driver> = {}): Driver => ({
   id: 'd1', firstName: 'Test', lastName: 'Driver', nationality: 'X', age: 28,
+  gender: 'male',
   visible: { pace: 80, qualifying: 75, racecraft: 80, overtaking: 78, defending: 78, consistency: 80, wetSkill: 80, tyreManagement: 75, feedback: 80 },
   hidden: { potential: 85, pressureResistance: 80, aggression: 60, adaptability: 70, loyalty: 60, ego: 80, confidenceSensitivity: 50, developmentRate: 60, declineRate: 30 },
   dynamic: { morale: 70, confidence: 75, form: 0, fatigue: 0, seasonsWithTeam: 1 },
   salaryDemandBase: 1000,
   history: [],
+  eligibility: { driverId: 'd1', seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
   ...over,
 })
 

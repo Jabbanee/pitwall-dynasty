@@ -2,6 +2,7 @@ import { createRng } from './rng'
 import type {
   Circuit,
   Driver,
+  DriverGender,
   StaffMember,
   Sponsor,
   Team,
@@ -143,6 +144,7 @@ interface DriverSeed {
   last: string
   nat: string
   age: number
+  gender: DriverGender
   v: Partial<Driver['visible']>
   h: Partial<Driver['hidden']>
   salary: number
@@ -150,35 +152,56 @@ interface DriverSeed {
 
 const DRIVER_SEEDS: DriverSeed[] = [
   // Tier 1 stars
-  { id: 'base.driver.00001', first: 'Mateo', last: 'Vasquez', nat: 'ESP', age: 28, v: { pace: 92, qualifying: 93, racecraft: 90, overtaking: 88, defending: 89, consistency: 91, wetSkill: 86, tyreManagement: 84, feedback: 85 }, h: { potential: 95, pressureResistance: 90, aggression: 72 }, salary: 28000 },
-  { id: 'base.driver.00002', first: 'Jonas', last: 'Lindqvist', nat: 'SWE', age: 31, v: { pace: 90, qualifying: 87, racecraft: 92, overtaking: 85, defending: 94, consistency: 90, wetSkill: 82, tyreManagement: 88, feedback: 90 }, h: { potential: 91, pressureResistance: 88, aggression: 55 }, salary: 25000 },
-  { id: 'base.driver.00003', first: 'Kenji', last: 'Morimoto', nat: 'JPN', age: 26, v: { pace: 89, qualifying: 91, racecraft: 84, overtaking: 87, defending: 78, consistency: 85, wetSkill: 92, tyreManagement: 83, feedback: 88 }, h: { potential: 94, pressureResistance: 76, aggression: 66 }, salary: 22000 },
-  { id: 'base.driver.00004', first: 'Alessandro', last: 'Ferraro', nat: 'ITA', age: 34, v: { pace: 87, qualifying: 85, racecraft: 91, overtaking: 83, defending: 90, consistency: 88, wetSkill: 80, tyreManagement: 90, feedback: 92 }, h: { potential: 87, pressureResistance: 85, aggression: 62 }, salary: 19000 },
+  { id: 'base.driver.00001', first: 'Mateo', last: 'Vasquez', nat: 'ESP', age: 28, gender: 'male', v: { pace: 92, qualifying: 93, racecraft: 90, overtaking: 88, defending: 89, consistency: 91, wetSkill: 86, tyreManagement: 84, feedback: 85 }, h: { potential: 95, pressureResistance: 90, aggression: 72 }, salary: 28000 },
+  { id: 'base.driver.00002', first: 'Jonas', last: 'Lindqvist', nat: 'SWE', age: 31, gender: 'male', v: { pace: 90, qualifying: 87, racecraft: 92, overtaking: 85, defending: 94, consistency: 90, wetSkill: 82, tyreManagement: 88, feedback: 90 }, h: { potential: 91, pressureResistance: 88, aggression: 55 }, salary: 25000 },
+  { id: 'base.driver.00003', first: 'Kenji', last: 'Morimoto', nat: 'JPN', age: 26, gender: 'male', v: { pace: 89, qualifying: 91, racecraft: 84, overtaking: 87, defending: 78, consistency: 85, wetSkill: 92, tyreManagement: 83, feedback: 88 }, h: { potential: 94, pressureResistance: 76, aggression: 66 }, salary: 22000 },
+  { id: 'base.driver.00004', first: 'Alessandro', last: 'Ferraro', nat: 'ITA', age: 34, gender: 'male', v: { pace: 87, qualifying: 85, racecraft: 91, overtaking: 83, defending: 90, consistency: 88, wetSkill: 80, tyreManagement: 90, feedback: 92 }, h: { potential: 87, pressureResistance: 85, aggression: 62 }, salary: 19000 },
   // Tier 2 solid
-  { id: 'base.driver.00005', first: 'Daniel', last: 'Okafor', nat: 'GBR', age: 29, v: { pace: 84, qualifying: 83, racecraft: 85, overtaking: 86, defending: 82, consistency: 81, wetSkill: 79, tyreManagement: 80, feedback: 82 }, h: { potential: 88, pressureResistance: 80, aggression: 70 }, salary: 14000 },
-  { id: 'base.driver.00006', first: 'Lucas', last: 'Mendes', nat: 'BRA', age: 24, v: { pace: 83, qualifying: 86, racecraft: 78, overtaking: 84, defending: 74, consistency: 76, wetSkill: 85, tyreManagement: 75, feedback: 77 }, h: { potential: 93, pressureResistance: 70, aggression: 78 }, salary: 11000 },
-  { id: 'base.driver.00007', first: 'Ivan', last: 'Petrov', nat: 'BUL', age: 32, v: { pace: 82, qualifying: 80, racecraft: 84, overtaking: 79, defending: 86, consistency: 84, wetSkill: 74, tyreManagement: 82, feedback: 80 }, h: { potential: 82, pressureResistance: 84, aggression: 52 }, salary: 12000 },
-  { id: 'base.driver.00008', first: 'Tom', last: 'Whitfield', nat: 'AUS', age: 27, v: { pace: 81, qualifying: 82, racecraft: 79, overtaking: 80, defending: 78, consistency: 80, wetSkill: 72, tyreManagement: 78, feedback: 79 }, h: { potential: 86, pressureResistance: 74, aggression: 64 }, salary: 10000 },
+  { id: 'base.driver.00005', first: 'Daniel', last: 'Okafor', nat: 'GBR', age: 29, gender: 'male', v: { pace: 84, qualifying: 83, racecraft: 85, overtaking: 86, defending: 82, consistency: 81, wetSkill: 79, tyreManagement: 80, feedback: 82 }, h: { potential: 88, pressureResistance: 80, aggression: 70 }, salary: 14000 },
+  { id: 'base.driver.00006', first: 'Lucas', last: 'Mendes', nat: 'BRA', age: 24, gender: 'male', v: { pace: 83, qualifying: 86, racecraft: 78, overtaking: 84, defending: 74, consistency: 76, wetSkill: 85, tyreManagement: 75, feedback: 77 }, h: { potential: 93, pressureResistance: 70, aggression: 78 }, salary: 11000 },
+  { id: 'base.driver.00007', first: 'Ivan', last: 'Petrov', nat: 'BUL', age: 32, gender: 'male', v: { pace: 82, qualifying: 80, racecraft: 84, overtaking: 79, defending: 86, consistency: 84, wetSkill: 74, tyreManagement: 82, feedback: 80 }, h: { potential: 82, pressureResistance: 84, aggression: 52 }, salary: 12000 },
+  { id: 'base.driver.00008', first: 'Tom', last: 'Whitfield', nat: 'AUS', age: 27, gender: 'male', v: { pace: 81, qualifying: 82, racecraft: 79, overtaking: 80, defending: 78, consistency: 80, wetSkill: 72, tyreManagement: 78, feedback: 79 }, h: { potential: 86, pressureResistance: 74, aggression: 64 }, salary: 10000 },
   // Midfield
-  { id: 'base.driver.00009', first: 'Emil', last: 'Novak', nat: 'CZE', age: 30, v: { pace: 78, qualifying: 77, racecraft: 80, overtaking: 76, defending: 82, consistency: 79, wetSkill: 76, tyreManagement: 80, feedback: 78 }, h: { potential: 80, pressureResistance: 78, aggression: 58 }, salary: 8000 },
-  { id: 'base.driver.00010', first: 'Rafael', last: 'Cortez', nat: 'MEX', age: 23, v: { pace: 77, qualifying: 79, racecraft: 73, overtaking: 78, defending: 70, consistency: 71, wetSkill: 80, tyreManagement: 72, feedback: 74 }, h: { potential: 90, pressureResistance: 66, aggression: 82 }, salary: 6000 },
-  { id: 'base.driver.00011', first: 'Henrik', last: 'Sorensen', nat: 'DEN', age: 33, v: { pace: 76, qualifying: 75, racecraft: 79, overtaking: 73, defending: 81, consistency: 82, wetSkill: 73, tyreManagement: 81, feedback: 83 }, h: { potential: 76, pressureResistance: 82, aggression: 48 }, salary: 7000 },
-  { id: 'base.driver.00012', first: 'Yusuf', last: 'Demir', nat: 'TUR', age: 25, v: { pace: 75, qualifying: 78, racecraft: 72, overtaking: 77, defending: 69, consistency: 70, wetSkill: 71, tyreManagement: 70, feedback: 72 }, h: { potential: 88, pressureResistance: 68, aggression: 76 }, salary: 5000 },
+  { id: 'base.driver.00009', first: 'Emil', last: 'Novak', nat: 'CZE', age: 30, gender: 'male', v: { pace: 78, qualifying: 77, racecraft: 80, overtaking: 76, defending: 82, consistency: 79, wetSkill: 76, tyreManagement: 80, feedback: 78 }, h: { potential: 80, pressureResistance: 78, aggression: 58 }, salary: 8000 },
+  { id: 'base.driver.00010', first: 'Rafael', last: 'Cortez', nat: 'MEX', age: 23, gender: 'male', v: { pace: 77, qualifying: 79, racecraft: 73, overtaking: 78, defending: 70, consistency: 71, wetSkill: 80, tyreManagement: 72, feedback: 74 }, h: { potential: 90, pressureResistance: 66, aggression: 82 }, salary: 6000 },
+  { id: 'base.driver.00011', first: 'Henrik', last: 'Sorensen', nat: 'DEN', age: 33, gender: 'male', v: { pace: 76, qualifying: 75, racecraft: 79, overtaking: 73, defending: 81, consistency: 82, wetSkill: 73, tyreManagement: 81, feedback: 83 }, h: { potential: 76, pressureResistance: 82, aggression: 48 }, salary: 7000 },
+  { id: 'base.driver.00012', first: 'Yusuf', last: 'Demir', nat: 'TUR', age: 25, gender: 'male', v: { pace: 75, qualifying: 78, racecraft: 72, overtaking: 77, defending: 69, consistency: 70, wetSkill: 71, tyreManagement: 70, feedback: 72 }, h: { potential: 88, pressureResistance: 68, aggression: 76 }, salary: 5000 },
   // Lower field / rookies
-  { id: 'base.driver.00013', first: 'Oliver', last: 'Grant', nat: 'CAN', age: 22, v: { pace: 71, qualifying: 72, racecraft: 67, overtaking: 70, defending: 63, consistency: 66, wetSkill: 74, tyreManagement: 65, feedback: 70 }, h: { potential: 91, pressureResistance: 60, aggression: 72 }, salary: 3000 },
-  { id: 'base.driver.00014', first: 'Pierre', last: 'Laurent', nat: 'FRA', age: 36, v: { pace: 73, qualifying: 71, racecraft: 78, overtaking: 70, defending: 79, consistency: 80, wetSkill: 70, tyreManagement: 79, feedback: 85 }, h: { potential: 73, pressureResistance: 84, aggression: 44 }, salary: 5500 },
-  { id: 'base.driver.00015', first: 'Sanjay', last: 'Patel', nat: 'IND', age: 24, v: { pace: 70, qualifying: 73, racecraft: 66, overtaking: 69, defending: 62, consistency: 67, wetSkill: 68, tyreManagement: 66, feedback: 71 }, h: { potential: 87, pressureResistance: 64, aggression: 68 }, salary: 2800 },
-  { id: 'base.driver.00016', first: 'Nikola', last: 'Horvat', nat: 'CRO', age: 29, v: { pace: 72, qualifying: 70, racecraft: 74, overtaking: 71, defending: 75, consistency: 73, wetSkill: 66, tyreManagement: 72, feedback: 70 }, h: { potential: 74, pressureResistance: 74, aggression: 60 }, salary: 4200 },
-  { id: 'base.driver.00017', first: 'Felix', last: 'Braun', nat: 'AUT', age: 21, v: { pace: 68, qualifying: 71, racecraft: 62, overtaking: 67, defending: 58, consistency: 62, wetSkill: 70, tyreManagement: 61, feedback: 68 }, h: { potential: 92, pressureResistance: 56, aggression: 74 }, salary: 2000 },
-  { id: 'base.driver.00018', first: 'Diego', last: 'Salazar', nat: 'ARG', age: 27, v: { pace: 71, qualifying: 69, racecraft: 73, overtaking: 72, defending: 74, consistency: 70, wetSkill: 69, tyreManagement: 70, feedback: 69 }, h: { potential: 78, pressureResistance: 72, aggression: 66 }, salary: 3800 },
-  { id: 'base.driver.00019', first: 'Antti', last: 'Korhonen', nat: 'FIN', age: 26, v: { pace: 74, qualifying: 76, racecraft: 71, overtaking: 73, defending: 70, consistency: 72, wetSkill: 78, tyreManagement: 74, feedback: 73 }, h: { potential: 84, pressureResistance: 76, aggression: 58 }, salary: 5200 },
-  { id: 'base.driver.00020', first: 'Marco', last: 'Silva', nat: 'POR', age: 35, v: { pace: 70, qualifying: 68, racecraft: 76, overtaking: 68, defending: 77, consistency: 78, wetSkill: 67, tyreManagement: 77, feedback: 82 }, h: { potential: 70, pressureResistance: 82, aggression: 46 }, salary: 4500 },
+  { id: 'base.driver.00013', first: 'Oliver', last: 'Grant', nat: 'CAN', age: 22, gender: 'male', v: { pace: 71, qualifying: 72, racecraft: 67, overtaking: 70, defending: 63, consistency: 66, wetSkill: 74, tyreManagement: 65, feedback: 70 }, h: { potential: 91, pressureResistance: 60, aggression: 72 }, salary: 3000 },
+  { id: 'base.driver.00014', first: 'Pierre', last: 'Laurent', nat: 'FRA', age: 36, gender: 'male', v: { pace: 73, qualifying: 71, racecraft: 78, overtaking: 70, defending: 79, consistency: 80, wetSkill: 70, tyreManagement: 79, feedback: 85 }, h: { potential: 73, pressureResistance: 84, aggression: 44 }, salary: 5500 },
+  { id: 'base.driver.00015', first: 'Sanjay', last: 'Patel', nat: 'IND', age: 24, gender: 'male', v: { pace: 70, qualifying: 73, racecraft: 66, overtaking: 69, defending: 62, consistency: 67, wetSkill: 68, tyreManagement: 66, feedback: 71 }, h: { potential: 87, pressureResistance: 64, aggression: 68 }, salary: 2800 },
+  { id: 'base.driver.00016', first: 'Nikola', last: 'Horvat', nat: 'CRO', age: 29, gender: 'male', v: { pace: 72, qualifying: 70, racecraft: 74, overtaking: 71, defending: 75, consistency: 73, wetSkill: 66, tyreManagement: 72, feedback: 70 }, h: { potential: 74, pressureResistance: 74, aggression: 60 }, salary: 4200 },
+  { id: 'base.driver.00017', first: 'Felix', last: 'Braun', nat: 'AUT', age: 21, gender: 'male', v: { pace: 68, qualifying: 71, racecraft: 62, overtaking: 67, defending: 58, consistency: 62, wetSkill: 70, tyreManagement: 61, feedback: 68 }, h: { potential: 92, pressureResistance: 56, aggression: 74 }, salary: 2000 },
+  { id: 'base.driver.00018', first: 'Diego', last: 'Salazar', nat: 'ARG', age: 27, gender: 'male', v: { pace: 71, qualifying: 69, racecraft: 73, overtaking: 72, defending: 74, consistency: 70, wetSkill: 69, tyreManagement: 70, feedback: 69 }, h: { potential: 78, pressureResistance: 72, aggression: 66 }, salary: 3800 },
+  { id: 'base.driver.00019', first: 'Antti', last: 'Korhonen', nat: 'FIN', age: 26, gender: 'male', v: { pace: 74, qualifying: 76, racecraft: 71, overtaking: 73, defending: 70, consistency: 72, wetSkill: 78, tyreManagement: 74, feedback: 73 }, h: { potential: 84, pressureResistance: 76, aggression: 58 }, salary: 5200 },
+  { id: 'base.driver.00020', first: 'Marco', last: 'Silva', nat: 'POR', age: 35, gender: 'male', v: { pace: 70, qualifying: 68, racecraft: 76, overtaking: 68, defending: 77, consistency: 78, wetSkill: 67, tyreManagement: 77, feedback: 82 }, h: { potential: 70, pressureResistance: 82, aggression: 46 }, salary: 4500 },
   // Reserve/rookie pool (free agents)
-  { id: 'base.driver.00021', first: 'Leo', last: 'Marchetti', nat: 'ITA', age: 20, v: { pace: 64, qualifying: 66, racecraft: 58, overtaking: 62, defending: 54, consistency: 58, wetSkill: 66, tyreManagement: 57, feedback: 64 }, h: { potential: 93, pressureResistance: 55, aggression: 70 }, salary: 1500 },
-  { id: 'base.driver.00022', first: 'Jamal', last: 'Haddad', nat: 'MAR', age: 22, v: { pace: 63, qualifying: 65, racecraft: 59, overtaking: 64, defending: 55, consistency: 60, wetSkill: 62, tyreManagement: 58, feedback: 62 }, h: { potential: 90, pressureResistance: 58, aggression: 72 }, salary: 1300 },
-  { id: 'base.driver.00023', first: 'Ethan', last: 'Brooks', nat: 'NZL', age: 23, v: { pace: 65, qualifying: 64, racecraft: 61, overtaking: 63, defending: 58, consistency: 62, wetSkill: 64, tyreManagement: 60, feedback: 63 }, h: { potential: 86, pressureResistance: 62, aggression: 64 }, salary: 1600 },
-  { id: 'base.driver.00024', first: 'Andrei', last: 'Popescu', nat: 'ROU', age: 25, v: { pace: 64, qualifying: 63, racecraft: 63, overtaking: 62, defending: 60, consistency: 64, wetSkill: 60, tyreManagement: 63, feedback: 61 }, h: { potential: 80, pressureResistance: 66, aggression: 62 }, salary: 1800 },
+  { id: 'base.driver.00021', first: 'Leo', last: 'Marchetti', nat: 'ITA', age: 20, gender: 'male', v: { pace: 64, qualifying: 66, racecraft: 58, overtaking: 62, defending: 54, consistency: 58, wetSkill: 66, tyreManagement: 57, feedback: 64 }, h: { potential: 93, pressureResistance: 55, aggression: 70 }, salary: 1500 },
+  { id: 'base.driver.00022', first: 'Jamal', last: 'Haddad', nat: 'MAR', age: 22, gender: 'male', v: { pace: 63, qualifying: 65, racecraft: 59, overtaking: 64, defending: 55, consistency: 60, wetSkill: 62, tyreManagement: 58, feedback: 62 }, h: { potential: 90, pressureResistance: 58, aggression: 72 }, salary: 1300 },
+  { id: 'base.driver.00023', first: 'Ethan', last: 'Brooks', nat: 'NZL', age: 23, gender: 'male', v: { pace: 65, qualifying: 64, racecraft: 61, overtaking: 63, defending: 58, consistency: 62, wetSkill: 64, tyreManagement: 60, feedback: 63 }, h: { potential: 86, pressureResistance: 62, aggression: 64 }, salary: 1600 },
+  { id: 'base.driver.00024', first: 'Andrei', last: 'Popescu', nat: 'ROU', age: 25, gender: 'male', v: { pace: 64, qualifying: 63, racecraft: 63, overtaking: 62, defending: 60, consistency: 64, wetSkill: 60, tyreManagement: 63, feedback: 61 }, h: { potential: 80, pressureResistance: 66, aggression: 62 }, salary: 1800 },
 ]
+
+/** Fictional driver name pools per gender. The talent generator is
+ *  GENDER-NEUTRAL: it only picks a different FIRST/LAST/NAT pool
+ *  per gender. The skill / potential pipeline is identical. */
+export const NAME_POOLS: Record<DriverGender, { first: string[]; last: string[]; nat: string[] }> = {
+  male: {
+    first: ['Noah', 'Liam', 'Oscar', 'Hugo', 'Ravi', 'Kaito', 'Mateus', 'Viktor', 'Amir', 'Jonas', 'Bruno', 'Theo'],
+    last: ['Reyes', 'Kowalski', 'Tanaka', 'Duarte', 'Sharma', 'Yamada', 'Costa', 'Volkov', 'Nazari', 'Berg', 'Almeida', 'Moreau'],
+    nat: ['ESP', 'POL', 'JPN', 'POR', 'IND', 'BRA', 'RUS', 'IRN', 'SWE', 'FRA', 'USA', 'GER'],
+  },
+  female: {
+    first: ['Aurelia', 'Sofia', 'Linnea', 'Camille', 'Imani', 'Yuki', 'Beatriz', 'Tatiana', 'Dilan', 'Klara', 'Mei', 'Hana'],
+    last: ['Hartwell', 'Moreau', 'Vinter', 'Bonnet', 'Okafor', 'Hirano', 'Cavalcanti', 'Ivanova', 'Rashidi', 'Aalto', 'Lemos', 'Saito'],
+    nat: ['FRA', 'SWE', 'JPN', 'BRA', 'NGA', 'ITA', 'GBR', 'ESP', 'POR', 'GER', 'POL', 'CZE'],
+  },
+  nonbinary: {
+    first: ['Alex', 'Robin', 'Sam', 'Charlie', 'Kim', 'Jordan', 'Avery', 'Quinn', 'Sage', 'Toni', 'Reese', 'Val'],
+    last: ['Lindgren', 'Dvořák', 'Vasilenko', 'Cortez', 'Yamashita', 'Holt', 'Banerjee', 'Okafor', 'Sigurdsson', 'König', 'Cardoso', 'Abrahamsson'],
+    nat: ['SWE', 'CZE', 'RUS', 'MEX', 'JPN', 'NZL', 'IND', 'NGA', 'ISL', 'AUT', 'BRA', 'ISR'],
+  },
+}
 
 function makeDriver(s: DriverSeed): Driver {
   return {
@@ -187,6 +210,7 @@ function makeDriver(s: DriverSeed): Driver {
     lastName: s.last,
     nationality: s.nat,
     age: s.age,
+    gender: s.gender,
     visible: {
       pace: s.v.pace ?? 70, qualifying: s.v.qualifying ?? 70, racecraft: s.v.racecraft ?? 70,
       overtaking: s.v.overtaking ?? 70, defending: s.v.defending ?? 70, consistency: s.v.consistency ?? 70,
@@ -200,17 +224,21 @@ function makeDriver(s: DriverSeed): Driver {
     dynamic: { morale: 70, confidence: 65, form: 0, fatigue: 0, seasonsWithTeam: 1 },
     salaryDemandBase: s.salary,
     history: [],
+    eligibility: { driverId: s.id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
   }
 }
 
 export const DRIVERS: Driver[] = DRIVER_SEEDS.map(makeDriver)
 
-/** Generate additional rookies deterministically for long careers. */
-export function generateRookie(rngSeed: number, season: number): Driver {
+/** Generate a rookie driver deterministically. Gender only affects
+ *  the name pool — it NEVER affects skill, potential, development
+ *  or decline. The pipeline below is identical for every gender. */
+export function generateRookie(rngSeed: number, season: number, gender: DriverGender = 'male'): Driver {
   const rng = createRng(rngSeed)
-  const FIRST = ['Noah', 'Liam', 'Oscar', 'Hugo', 'Ravi', 'Kaito', 'Mateus', 'Viktor', 'Amir', 'Jonas', 'Bruno', 'Theo']
-  const LAST = ['Reyes', 'Kowalski', 'Tanaka', 'Duarte', 'Sharma', 'Yamada', 'Costa', 'Volkov', 'Nazari', 'Berg', 'Almeida', 'Moreau']
-  const NATS = ['ESP', 'POL', 'JPN', 'POR', 'IND', 'BRA', 'RUS', 'IRN', 'SWE', 'FRA', 'USA', 'GER']
+  const pool = NAME_POOLS[gender]
+  const FIRST = pool.first
+  const LAST = pool.last
+  const NATS = pool.nat
   const paceBase = rng.range(60, 72) + Math.min(season, 10) * 0.3
   const pot = Math.min(97, paceBase + rng.range(8, 26))
   return {
@@ -219,6 +247,7 @@ export function generateRookie(rngSeed: number, season: number): Driver {
     lastName: rng.pick(LAST),
     nationality: rng.pick(NATS),
     age: rng.int(18, 24),
+    gender,
     visible: {
       pace: Math.round(paceBase), qualifying: Math.round(paceBase + rng.gauss(1)),
       racecraft: Math.round(paceBase - rng.range(2, 6)), overtaking: Math.round(paceBase + rng.gauss(0)),
@@ -236,6 +265,7 @@ export function generateRookie(rngSeed: number, season: number): Driver {
     dynamic: { morale: 65, confidence: 55, form: 0, fatigue: 0, seasonsWithTeam: 0 },
     salaryDemandBase: Math.round(rng.range(900, 2400)),
     history: [],
+    eligibility: { driverId: '', seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
   }
 }
 

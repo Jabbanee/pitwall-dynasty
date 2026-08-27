@@ -244,9 +244,15 @@ function updateDriverDynamics(champ: Championship) {
     drv.dynamic.morale = Math.max(10, Math.min(99, drv.dynamic.morale + overPerform * 1.1))
     drv.history.push({
       season: champ.config.season,
+      seriesId: 'base.championship.wgp',
       teamId: r.teamId,
-      points: r.points,
+      starts: 1,
       wins: r.finishPosition === 1 ? 1 : 0,
+      podiums: r.finishPosition <= 3 ? 1 : 0,
+      poles: 0,
+      fastestLaps: r.fastestLap ? 1 : 0,
+      points: r.points,
+      championshipPosition: 0, // backfilled at end-of-season in standings
     })
   }
 }

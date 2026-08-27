@@ -77,6 +77,9 @@ export interface TyreCompound {
 
 // ---------- Drivers ----------
 
+/** Identity-only field. MUST NOT modify driving ability. */
+export type DriverGender = 'male' | 'female' | 'nonbinary'
+
 export interface DriverVisibleAbilities {
   pace: number // 0..100
   qualifying: number
@@ -109,19 +112,112 @@ export interface DriverDynamicState {
   seasonsWithTeam: number
 }
 
+/** Per-season record in any series (top or feeder). */
+export interface DriverSeasonRecord {
+  season: number
+  seriesId: SeriesId
+  teamId: TeamId | null
+  starts: number
+  wins: number
+  podiums: number
+  poles: number
+  fastestLaps: number
+  points: number
+  championshipPosition: number
+}
+
+/** A reserve role with a top-series team. Promotes into race seat
+ *  when the player chooses. */
+export interface ReserveContract {
+  teamId: TeamId
+  signedSeason: number
+  seasonsRemaining: number
+  salaryPerSeason: number
+  expectedRaceSeatBy: number // season number; breach beyond this is severe
+  /** Optional promise; broken promise is severe. */
+  promises?: Array<{ description: string; broken: boolean; round: number }>
+}
+
+/** A driver-academy place. Light contract. Promotes to reserve
+ *  (and eventually to race seat) when the player chooses. */
+export interface AcademyContract {
+  teamId: TeamId
+  signedSeason: number
+  seasonsRemaining: number
+  stipendPerSeason: number
+  /** Optional future-seat commitment. */
+  seatEvaluationBy?: number
+  testSessionsPromised?: number
+  promises?: Array<{ description: string; broken: boolean; round: number }>
+}
+
+/** Player-facing scouting tier. Hidden potential is NEVER shown
+ *  numerically to the player. */
+export type PotentialTier =
+  | 'Limited'
+  | 'Developing'
+  | 'Good Prospect'
+  | 'High Potential'
+  | 'Elite Prospect'
+  | 'Generational Talent'
+
+/** Player-facing scout report. The visible ranges are guaranteed
+ *  to contain the true visible score; the true hidden.potential is
+ *  only exposed via the `potentialTier` label. */
+export interface ScoutReport {
+  driverId: DriverId
+  confidence: number // 0..1
+  visible: {
+    pace: [number, number]
+    qualifying: [number, number]
+    racecraft: [number, number]
+    wetSkill: [number, number]
+    potentialTier: PotentialTier
+  }
+  scoutedAt: number
+  /** Internal: how tight the visible band is. Never shown to player. */
+  accuracy: number
+}
+
+export interface WatchEntry {
+  driverId: DriverId
+  addedAt: number
+  lastNotified: number
+}
+
+/** Fictional top-series racing licence. Earned by junior results. */
+export interface SeriesLicence {
+  driverId: DriverId
+  seriesId: 'base.championship.wgp'
+  granted: boolean
+  pointsRequired: number
+  pointsCurrent: number
+  reasons: string[] // reasons the player has not yet qualified (empty when granted)
+}
+
 export interface Driver {
   id: DriverId
   firstName: string
   lastName: string
   nationality: string
   age: number
+  gender: DriverGender
   visible: DriverVisibleAbilities
   hidden: DriverHiddenTraits
   dynamic: DriverDynamicState
   salaryDemandBase: number // thousands per season, adjusted by market
   contract?: DriverContract
+  /** A reserve role with a top-series team. */
+  reserveContract?: ReserveContract
+  /** A driver-academy place with a top-series team. */
+  academyContract?: AcademyContract
   retired?: boolean
-  history: { season: number; teamId: TeamId; points: number; wins: number }[]
+  /** Persistent per-season record across every series. */
+  history: DriverSeasonRecord[]
+  /** Top-series eligibility. Earned through feeder results. */
+  eligibility: SeriesLicence
+  /** Latest scout report (player-facing). Undefined if never scouted. */
+  scouted?: ScoutReport
 }
 
 export interface DriverContract {
@@ -524,6 +620,16 @@ export interface QualifyingResult {
 
 // ---------- Championship state ----------
 
+/** Fictional series ids for the main championship and its feeder pyramid.
+ *  All ids are stable; names are display-only. */
+export type SeriesId =
+  | 'base.championship.wgp'
+  | 'base.junior.continental'
+  | 'base.junior.regional'
+  | 'base.junior.aurora'
+
+export type SeriesTier = 'top' | 'upper-junior' | 'lower-junior' | 'women'
+
 export type ChampionshipPhase =
   | 'lobby'
   | 'management'
@@ -593,6 +699,73 @@ export interface SeasonHistory {
   raceWinners: { roundIndex: number; circuitId: CircuitId; driverId: DriverId; teamId: TeamId }[]
 }
 
+/** Junior team participating in a feeder series. Structurally a
+ *  regular Team but with reputation, money and car tuned for
+ *  junior-tier racing. */
+export type JuniorTeam = Team
+
+/** Per-season result for any feeder series. */
+export interface SeriesSeasonHistory {
+  season: number
+  championDriverId: DriverId
+  championTeamId: TeamId
+  driverStandings: { driverId: DriverId; points: number }[]
+  teamStandings: { teamId: TeamId; points: number }[]
+  promoted: DriverId[]
+  relegated: DriverId[]
+}
+
+/** Configuration and live state of a feeder series. Simulated
+ *  deterministically in the background. */
+export interface SeriesConfig {
+  id: SeriesId
+  name: string
+  shortName: string
+  tier: SeriesTier
+  /** Brand colour used for the series emblem and accents. */
+  color: string
+  /** Blurb shown on the series card. */
+  blurb: string
+  /** Number of rounds per season. */
+  rounds: number
+  /** Number of teams / drivers in the grid (drives the catalogue). */
+  gridSize: number
+  /** Whether women's series — affects generation pool ratio only;
+   *  NEVER affects skill generation. */
+  isWomenSeries: boolean
+  /** From which season onwards the series exists. For Real Career
+   *  this gates the "women's championship formation" event. */
+  establishedSeason: number
+  /** The fictional emblem SVG (inline). */
+  emblemSvg: string
+}
+
+export interface SeriesState {
+  config: SeriesConfig
+  /** All drivers that have ever raced in this series (current +
+   *  graduated). Drivers graduate to upper series or to the
+   *  top championship as reserves. */
+  drivers: Record<DriverId, Driver>
+  /** All teams that have ever raced in this series (current). */
+  teams: JuniorTeam[]
+  /** All race results, by season/round. */
+  results: Array<{
+    season: number
+    roundIndex: number
+    circuitId: CircuitId
+    results: CarRaceResult[]
+    fastestLapDriverId?: DriverId
+  }>
+  /** Season-level history (champion, promotions, relegations). */
+  history: SeriesSeasonHistory[]
+  /** Calendar of circuits used in this series (own small calendar). */
+  calendar: CircuitId[]
+  /** Persistent RNG seed for this series. */
+  rngSeed: number
+  currentSeason: number
+  currentRoundIndex: number
+}
+
 export interface Championship {
   id: Id
   mode: 'fast' | 'league' | 'career'
@@ -612,4 +785,17 @@ export interface Championship {
   history: SeasonHistory[]
   rngSeed: number
   nextIds: Record<string, number>
+  /** Persistent feeder series (local Career only). */
+  feeder?: Record<SeriesId, SeriesState>
+  /** Persistent scouting data. */
+  scouting?: {
+    reports: Record<DriverId, ScoutReport>
+    watchlist: WatchEntry[]
+    /** Number of consecutive weeks the scouting network has been
+     *  funding active. Drives confidence growth. */
+    weeksFunded: number
+  }
+  /** Tracks whether the women's series has been established in
+   *  the current save (Real Career historical gating). */
+  womenSeriesEstablished: boolean
 }

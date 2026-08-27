@@ -290,6 +290,7 @@ export class MultiplayerLobby {
       history: [],
       rngSeed: seed,
       nextIds: {},
+      womenSeriesEstablished: false,
     }
 
     // Fresh agency states for all drivers (zeroed relationships)

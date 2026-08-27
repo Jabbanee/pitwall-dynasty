@@ -140,6 +140,31 @@ with actionable messages.
 Open **Dev** in the top bar: batch-simulate 100/500 races with aggregate
 balance stats (win distribution, DNF rate, pit counts, SC rates, overtakes),
 instantly simulate the current round, jump rounds, reset save, validate mods.
+In the Driver Ecosystem pass the Dev panel also exposes:
+generate junior class, simulate junior round, simulate junior season,
+reveal scouting, set driver potential, sign to academy, make licence
+eligible, advance one season.
+
+## Driver ecosystem
+
+A persistent pyramid sits under the main championship:
+
+- Lower junior — "Regional Formula" (fictional)
+- Upper junior — "Continental Formula" (fictional)
+- Women's development — "Aurora Formula" (fictional)
+- Top — "World Grand Prix"
+
+All driver generation, scouting, academy, contracts, eligibility
+and reserve roles run locally in Career. Multiplayer is unchanged
+and remains the top-championship-only authoritative model.
+
+Gender is identity data, never a driving-performance modifier.
+Male and female drivers use identical skill / potential /
+development / decline systems. The women's series is a development
+championship, not a weaker series, and any female driver can
+promote into the normal junior and top series. See
+[`docs/DRIVER_ECOSYSTEM.md`](docs/DRIVER_ECOSYSTEM.md) for the full
+contract.
 
 ## Current scope / limitations
 

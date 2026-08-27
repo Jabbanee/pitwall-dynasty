@@ -6,10 +6,12 @@ import type { RaceEvent, Driver } from '../src/core/types'
 const DRIVERS: Driver[] = [
   {
     id: 'd1', firstName: 'Ada', lastName: 'Voss', nationality: 'NL', age: 28,
+    gender: 'female',
     visible: { pace: 80, qualifying: 80, racecraft: 80, overtaking: 80, defending: 80, consistency: 80, wetSkill: 80, tyreManagement: 80, feedback: 80 },
     hidden: { potential: 85, pressureResistance: 80, aggression: 50, adaptability: 70, loyalty: 50, ego: 50, confidenceSensitivity: 50, developmentRate: 50, declineRate: 30 },
     dynamic: { morale: 70, confidence: 70, form: 0, fatigue: 0, seasonsWithTeam: 1 },
     salaryDemandBase: 1000, history: [],
+    eligibility: { driverId: 'd1', seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
   },
 ]
 

@@ -174,6 +174,7 @@ export function createChampionship(
     history: [],
     rngSeed: options?.seed ?? ((Date.now() ^ 0x12345678) >>> 0),
     nextIds: {},
+    womenSeriesEstablished: mode === 'career' && config.eraYear !== undefined && config.eraYear >= 2014,
   }
 }
 

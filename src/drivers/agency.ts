@@ -227,11 +227,13 @@ export class DriverAgencyStore {
     return {
       id,
       firstName: id, lastName: id, nationality: '?', age: 25,
+      gender: 'male',
       visible: { pace: 60, qualifying: 60, racecraft: 60, overtaking: 60, defending: 60, consistency: 60, wetSkill: 60, tyreManagement: 60, feedback: 60 },
       hidden: { potential: 60, pressureResistance: 60, aggression: 50, adaptability: 60, loyalty: 50, ego: 50, confidenceSensitivity: 50, developmentRate: 50, declineRate: 30 },
       dynamic: { morale: 60, confidence: 60, form: 0, fatigue: 0, seasonsWithTeam: 1 },
       salaryDemandBase: 0,
       history: [],
+      eligibility: { driverId: id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
     }
   }
 }

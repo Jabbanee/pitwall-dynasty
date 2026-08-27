@@ -1,0 +1,33 @@
+feat(drivers): add gender field, expanded history, eligibility and contracts
+
+- src/core/types.ts: add DriverGender; extend Driver with gender,
+  expanded DriverSeasonRecord (seriesId, starts, podiums, poles,
+  fastestLaps, championshipPosition), optional reserveContract
+  and academyContract, persistent eligibility (SeriesLicence),
+  scouted (ScoutReport). Add SeriesId, SeriesTier, SeriesConfig,
+  JuniorTeam (=Team alias), SeriesSeasonHistory, SeriesState,
+  ReserveContract, AcademyContract, PotentialTier, ScoutReport,
+  WatchEntry. Add feeder, scouting, womenSeriesEstablished to
+  Championship.
+- src/core/content.ts: 24 base drivers backfilled with gender
+  'male'; add NAME_POOLS for male/female/nonbinary; generateRookie
+  is now gender-aware in name only — skill / potential pipeline is
+  identical. Backfill eligibility on makeDriver.
+- src/championship/create.ts: stamp womenSeriesEstablished in new
+  championships. Defaults to true for Career 2014+ eras, false for
+  Fast/older Career.
+- src/championship/engine.ts: backfill gender and eligibility on
+  the local deterministic rookie generator.
+- src/championship/game-engine.ts: backfill new fields on every
+  per-round history.push entry (seriesId='base.championship.wgp',
+  starts/podiums/fastestLaps).
+- src/drivers/agency.ts, src/content/modding.ts: backfill gender
+  and eligibility on the dummy driver and on the example mod
+  driver.
+- src/server/multiplayer-server.ts: stamp womenSeriesEstablished:
+  false on every new multiplayer championship (multiplayer remains
+  the top-championship-only model).
+- tests/agency-demands.test.ts, tests/commentary-display.test.ts:
+  backfill gender + eligibility in the existing fixtures.
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>

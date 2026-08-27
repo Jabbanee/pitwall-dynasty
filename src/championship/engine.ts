@@ -616,6 +616,7 @@ function generateRookieDeterministic(seed: number, season: number): import('../c
     lastName: rng.pick(LAST),
     nationality: rng.pick(NATS),
     age: rng.int(18, 23),
+    gender: 'male',
     visible: {
       pace: Math.round(paceBase), qualifying: Math.round(paceBase + rng.gauss(1)),
       racecraft: Math.round(paceBase - rng.range(2, 6)), overtaking: Math.round(paceBase + rng.gauss(0)),
@@ -633,6 +634,7 @@ function generateRookieDeterministic(seed: number, season: number): import('../c
     dynamic: { morale: 65, confidence: 55, form: 0, fatigue: 0, seasonsWithTeam: 0 },
     salaryDemandBase: Math.round(rng.range(900, 2400)),
     history: [],
+    eligibility: { driverId: id, seriesId: 'base.championship.wgp', granted: false, pointsRequired: 40, pointsCurrent: 0, reasons: ['Insufficient points.'] },
   }
 }
 
