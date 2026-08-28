@@ -282,5 +282,21 @@ Local Career includes a full driver pipeline:
 See `docs/DRIVER_ECOSYSTEM.md` for the full design and
 `docs/PROJECT_STATUS.md` for the implementation status.
 
-**145/145** vitest tests pass. TypeScript is clean. Production build
-is green. The two-client multiplayer smoke test passes.
+**153/153** vitest tests pass. TypeScript is clean. Production
+build is green. The two-client multiplayer smoke test passes.
+Pitwall Dynasty is a real standalone Windows PC game — see
+[docs/DESKTOP_ARCHITECTURE.md](docs/DESKTOP_ARCHITECTURE.md) for the
+Electron architecture. The packaged installer lives at
+`dist-electron\Pitwall Dynasty Setup 0.1.0.exe`.
+
+## Development
+
+```sh
+npm install             # install dependencies
+npm run dev             # vite dev server + browser UI
+npm run server          # authoritative multiplayer server (Node)
+npm test                # 153/153 vitest tests
+npm run build           # tsc + vite production build
+npm run desktop:dev     # vite + electron in dev mode
+npm run desktop:package # produce the Windows installer
+```

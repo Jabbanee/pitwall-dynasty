@@ -820,10 +820,37 @@ export function renderBroadcast3D(root: HTMLElement) {
   resize()
 
   let lastFrame = performance.now()
+  // FPS limiter driven by the desktop / browser settings store.
+  // 0 means unlimited; otherwise we floor the per-frame interval.
+  // This only affects rendering — the simulation tick rate is
+  // untouched (deterministic sim runs on its own clock).
+  let fpsLimit = 0
+  function readFpsLimit() {
+    try {
+      const raw = localStorage.getItem('pitwall-dynasty.settings')
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (typeof parsed?.fpsLimit === 'number') fpsLimit = parsed.fpsLimit
+    } catch (_) { /* ignore */ }
+  }
+  readFpsLimit()
+  // Pick up changes from the settings screen without a remount.
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'pitwall-dynasty.settings') readFpsLimit()
+  })
+  const minFrameMs = () => (fpsLimit > 0 ? 1000 / fpsLimit : 0)
+  let lastRender = 0
+
   function frame(now: number) {
     if (!running) return
     const dt = Math.min(0.1, (now - lastFrame) / 1000)
     lastFrame = now
+    // Honor the FPS limit without altering the simulation tick rate.
+    if (minFrameMs() > 0 && now - lastRender < minFrameMs()) {
+      requestAnimationFrame(frame)
+      return
+    }
+    lastRender = now
     if (store.multi.active) {
       // server-driven — nothing to tick locally
     } else {
@@ -853,7 +880,27 @@ export function renderBroadcast3D(root: HTMLElement) {
       running = false
       window.removeEventListener('resize', resize)
       for (const c of car3ds.values()) c.visual.dispose()
-      renderer.dispose()
+      car3ds.clear()
+      // Dispose any leftover scene resources (track, lights, etc).
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh
+        if (mesh.geometry && typeof mesh.geometry.dispose === 'function') mesh.geometry.dispose()
+        const mat = mesh.material
+        if (Array.isArray(mat)) {
+          for (const m of mat) m.dispose?.()
+        } else if (mat && typeof (mat as { dispose?: () => void }).dispose === 'function') {
+          (mat as { dispose: () => void }).dispose()
+        }
+      })
+      // Drop the WebGL context so a returning broadcast gets a fresh
+      // one — prevents context leaks across navigation in a long
+      // desktop session.
+      try { renderer.dispose() } catch (_) { /* ignore */ }
+      try {
+        const gl = renderer.getContext()
+        const lose = gl.getExtension('WEBGL_lose_context')
+        lose?.loseContext()
+      } catch (_) { /* ignore */ }
       observer.disconnect()
       unsubscribe()
     }

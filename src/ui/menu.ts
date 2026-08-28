@@ -66,11 +66,20 @@ export function renderMenu(root: HTMLElement) {
     'Build your racing team against your friends. Lock in your decisions. Then watch them play out on track — together, on a shared broadcast.'))
 
   const meta = el('div', { class: 'ts-meta' })
-  meta.appendChild(el('span', {}, el('strong', {}, 'V'), '1.0.0'))
+  const versionChip = el('span', {}, el('strong', {}, 'V'), '0.1.0')
+  meta.appendChild(versionChip)
   meta.appendChild(el('span', {}, el('strong', {}, 'SEASON'), '1'))
   meta.appendChild(el('span', {}, el('strong', {}, 'CLASS'), 'OPEN-WHEEL'))
   meta.appendChild(el('span', {}, el('strong', {}, 'NET'), 'AUTHORITATIVE'))
   brand.appendChild(meta)
+
+  // Pull the real app version from the desktop bridge so the title
+  // screen never shows a hard-coded number that drifts from package.json.
+  if (typeof window !== 'undefined' && window.pitwall?.app?.getVersion) {
+    window.pitwall.app.getVersion()
+      .then((v) => { versionChip.lastChild && (versionChip.lastChild.textContent = v) })
+      .catch(() => { /* keep the fallback version visible */ })
+  }
 
   content.appendChild(brand)
 
@@ -184,6 +193,22 @@ export function renderMenu(root: HTMLElement) {
   void ensureContinueShortcut(screen, root)
 
   root.appendChild(screen)
+
+  // Global Alt+Enter → toggle fullscreen via the desktop bridge.
+  // Bound once per menu mount; cleaned up on route change because the
+  // root element is replaced.
+  function onKey(e: KeyboardEvent) {
+    if (e.altKey && e.key === 'Enter') {
+      e.preventDefault()
+      if (window.pitwall?.window?.toggleFullscreen) {
+        void window.pitwall.window.toggleFullscreen()
+      }
+    } else if (e.key === 'Escape') {
+      // In the main menu Esc is a no-op (no modal open); the
+      // settings / load screens handle their own Esc-back.
+    }
+  }
+  root.addEventListener('keydown', onKey)
 }
 
 async function ensureContinueShortcut(screen: HTMLElement, root: HTMLElement) {
