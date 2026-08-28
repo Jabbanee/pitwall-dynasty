@@ -43,7 +43,7 @@ export interface LiveCommand {
   note?: string
 }
 
-interface LiveCar {
+export interface LiveCar {
   teamId: string
   driverId: string
   teammateId?: string
@@ -478,6 +478,52 @@ export class LiveRaceEngine {
       before.push(this.mkEvent(this.simTime, 'finish', null, 'Chequered flag'))
     }
     return before
+  }
+
+  /**
+   * Presentation-level sub-step. Advances `simTime` to
+   * `targetSimTime` (in race-clock seconds) by calling `stepLap`
+   * the minimum number of times needed. `stepLap` itself advances
+   * the leader's clock by exactly one lap, so we cap each call so
+   * it does not overshoot the target. The broadcast frame loop
+   * calls this at the display refresh rate so the cars slide
+   * smoothly along the centreline between the discrete `stepLap`
+   * updates.
+   *
+   * Determinism note: this is a presentation-only helper. The
+   * `stepLap` method is still the single source of truth for race
+   * state; we just call it more often and at a smaller time
+   * granularity. The result is byte-identical to running
+   * `stepLap` until the leader's `totalTime` reaches the target
+   * (modulo the one-lap granularity of `stepLap`).
+   */
+  frameStep(targetSimTime: number): RaceEvent[] {
+    if (this.finished) return []
+    const events: RaceEvent[] = []
+    // Move the clock to the requested point if it is behind. The
+    // broadcast supplies `target = simTime + dt * speed` each
+    // frame, so this is just a clock-advance hook.
+    const target = Math.max(this.simTime, targetSimTime)
+    if (target === this.simTime) return []
+    // Determine how many full leader laps fit between the current
+    // clock and the target. Each stepLap consumes one leader lap
+    // (typically 80-95 sim s). We call at most one per frame so
+    // the renderer keeps a smooth timeline.
+    const leader = this.orderedCars()[0]
+    const nextBoundary = leader ? leader.totalTime : target
+    // If we have not reached the leader's next lap boundary yet,
+    // the clock can simply move to `target` without simulating a
+    // new lap. Auto position interpolation handles the in-between
+    // motion.
+    if (target < nextBoundary) {
+      this.simTime = target
+      return []
+    }
+    // Otherwise advance the sim and call stepLap once.
+    this.simTime = nextBoundary
+    const lapEvents = this.stepLap()
+    for (const e of lapEvents) events.push(e)
+    return events
   }
 
   /** Results — valid after finish; classified DNFs at 90% distance. */

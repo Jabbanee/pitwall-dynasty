@@ -118,9 +118,11 @@ export function renderBroadcast3D(root: HTMLElement) {
   const cameraMode: 'heli' | 'map' = 'heli'
   const commentary = createCommentaryDisplay()
   type LocalEngine = {
-    state: { simTime: number; leaderLap: number; totalLaps: number; trackWetness: number; condition: string }
+    state: { simTime: number; leaderLap: number; totalLaps: number; trackWetness: number; condition: string; cars?: Array<{ driverId: string; lastLapTime: number; lapStartTime: number; lapsDone: number; totalTime: number; position: number; teamId: string; carNumber: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }> }
     isFinished: () => boolean
-    stepLap: () => void
+    stepLap: () => unknown
+    frameStep: (dt: number) => unknown
+    lapFractionOf: (car: { lastLapTime: number; lapStartTime: number }) => number
     orderedCars: () => Array<{ driverId: string; teamId: string; carNumber: number; position: number; lapsDone: number; totalTime: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }>
     results: () => Array<{ driverId: string; teamId: string; finishPosition: number; classified: boolean; lapsCompleted: number; bestLapTime?: number; pitStops: number; points: number; fastestLap: boolean; dnfReason?: string }>
     applyCommand: (cmd: unknown) => { ok: boolean; response: string; deferred?: boolean }
@@ -359,13 +361,37 @@ export function renderBroadcast3D(root: HTMLElement) {
     for (const car of snapshot.cars) {
       const c3d = car3ds.get(car.driverId)
       if (!c3d) continue
-      const totalLen = track.totalLength
-      const gapMeters = car.gapSeconds * 55
-      const frac = (((car.lap - leaderLap) + (gapMeters / totalLen)) % 1 + 1) % 1 + 0.0
-      const lapFrac = ((car.lap % 1) + frac) % 1
+      // Use the local engine's lap-fraction helper for the
+      // single-player case. It is the only place that has
+      // continuous simTime between stepLap calls, so it produces a
+      // smooth 0..1 value. For multiplayer, fall back to the
+      // gap-derived fraction derived from authoritative lap counters.
+      let lapFrac: number
+      if (localEngine) {
+        const lc = (localEngine.state.cars ?? []).find((x) => x.driverId === car.driverId)
+        if (lc) {
+          const e = (localEngine as unknown as { lapFractionOf?: (c: { lastLapTime: number; lapStartTime: number }) => number })
+          const fn = e.lapFractionOf
+          if (typeof fn === 'function') {
+            lapFrac = fn.call(localEngine, lc)
+          } else {
+            lapFrac = ((car.lap - leaderLap) + 1 + 1) % 1
+          }
+        } else {
+          lapFrac = ((car.lap - leaderLap) + 1 + 1) % 1
+        }
+      } else {
+        // Multiplayer: gapSeconds is a real-time delta to the leader.
+        // Convert that to a fraction-of-lap using the championship
+        // lap length so cars visibly progress between snapshots.
+        const totalLen = track.totalLength
+        const gapMeters = car.gapSeconds * 55
+        const frac = (((car.lap - leaderLap) + (gapMeters / totalLen)) % 1 + 1) % 1
+        lapFrac = frac
+      }
       track.positionAt(lapFrac, tmpPos)
       track.tangentAt(lapFrac, tmpTan)
-      c3d.visual.group.position.lerp(tmpPos, 0.25)
+      c3d.visual.group.position.lerp(tmpPos, 0.35)
       const heading = Math.atan2(tmpTan.x, tmpTan.z)
       c3d.visual.group.rotation.y = heading
       // Approximate visual speed (m/s) from the gap-vs-leader delta
@@ -1000,14 +1026,18 @@ export function renderBroadcast3D(root: HTMLElement) {
   function localTick(dt: number) {
     const e = localEngine
     if (!e || e.isFinished()) return
-    cursorSeconds += dt * speed
-    let steps = 0
-    while (!e.isFinished() && e.state.simTime < cursorSeconds && steps < 3) {
-      e.stepLap()
-      steps++
+    // Advance the engine clock by dt*speed. The helper either
+    // moves the clock to the requested time (in which case the
+    // car positions are smoothly interpolated) or calls
+    // `stepLap` once if the clock has crossed a leader-lap
+    // boundary.
+    const target = cursorSeconds + dt * speed
+    const events = e.frameStep(target) as Array<{ type: string; driverId?: string; detail?: string; t?: number }>
+    cursorSeconds = e.state.simTime
+    for (const ev of events) {
+      void ev
     }
     if (e.isFinished()) {
-      cursorSeconds = Math.min(cursorSeconds, e.state.simTime + 5)
       // commitLocalResults inlined to keep the code path self-contained
       const champ = store.champ
       if (champ) {
@@ -1107,6 +1137,44 @@ export function renderBroadcast3D(root: HTMLElement) {
   const minFrameMs = () => (fpsLimit > 0 ? 1000 / fpsLimit : 0)
   let lastRender = 0
 
+  // DEV-only motion probe. Records the world transform of the
+  // first car at T0, T+500ms and T+1500ms and stores the deltas on
+  // `window.__pitwallMotion` so the headless test harness can read
+  // it. Production builds compile this branch in but it only runs
+  // when `localStorage.pitwall-dynasty.devProbe === '1'`.
+  let motionProbeStart = 0
+  let motionProbeT1: { pos: [number, number, number]; simTime: number; lap: number } | null = null
+  let motionProbeT2: { pos: [number, number, number]; simTime: number; lap: number } | null = null
+  function maybeMotionProbe() {
+    if (typeof window === 'undefined') return
+    const enabled = (() => { try { return localStorage.getItem('pitwall-dynasty.devProbe') === '1' } catch (_) { return false } })()
+    if (!enabled) return
+    const car = car3ds.values().next().value
+    if (!car) return
+    const simTime = localEngine ? localEngine.state.simTime : 0
+    const lap = localEngine ? localEngine.state.leaderLap : 0
+    const now = performance.now()
+    if (motionProbeStart === 0) {
+      motionProbeStart = now
+      ;(window as unknown as { __pitwallMotion?: unknown }).__pitwallMotion = {
+        t0: { pos: [car.visual.group.position.x, car.visual.group.position.y, car.visual.group.position.z], simTime, lap },
+        samples: [],
+      }
+      return
+    }
+    const elapsed = now - motionProbeStart
+    const sample = {
+      t: elapsed,
+      pos: [car.visual.group.position.x, car.visual.group.position.y, car.visual.group.position.z],
+      simTime,
+      lap,
+    }
+    const probe = (window as unknown as { __pitwallMotion?: { samples: Array<{ t: number; pos: number[]; simTime: number; lap: number }> } }).__pitwallMotion
+    if (probe) probe.samples.push(sample)
+    if (elapsed > 500 && !motionProbeT1) motionProbeT1 = { pos: [sample.pos[0], sample.pos[1], sample.pos[2]], simTime, lap }
+    if (elapsed > 1500 && !motionProbeT2) motionProbeT2 = { pos: [sample.pos[0], sample.pos[1], sample.pos[2]], simTime, lap }
+  }
+
   function frame(now: number) {
     if (!running) return
     const dt = Math.min(0.1, (now - lastFrame) / 1000)
@@ -1156,6 +1224,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       applyWeatherVisuals(wetness, condition)
       tickSpray(dt, wetness)
     }
+    maybeMotionProbe()
     renderer.render(scene, camera)
     requestAnimationFrame(frame)
   }
