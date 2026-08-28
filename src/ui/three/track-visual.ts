@@ -181,6 +181,17 @@ export interface PitLane {
   boxes: number
   /** Speed limit (km/h). */
   speedLimit: number
+  /**
+   * Pre-baked pit-lane centreline samples. Each sample is a
+   * world-space Vector3 in the same coordinate system as the
+   * main track. The renderer interpolates along this path for
+   * cars that are pitting, giving a continuous "leave racing
+   * line → pit lane → box → exit → rejoin" arc instead of a
+   * teleport.
+   */
+  centreline: Array<{ x: number; y: number; z: number; speed: number }>
+  /** World-space positions of the team boxes. One per team. */
+  boxes_xy: Array<{ x: number; y: number; z: number; speed: number }>
 }
 
 export interface TrackVisualDefinition {
@@ -390,6 +401,14 @@ export function getTrackVisualDefinition(circuit: Circuit): TrackVisualDefinitio
       side: pitSide,
       boxes: 10,
       speedLimit: 80,
+      // These two arrays are filled in by
+      // `populatePitCentreline` and `populatePitBoxes` inside
+      // `buildTrackWorld` because they depend on the resolved
+      // centreline spline. We seed them with empty arrays so
+      // tests that call `getTrackVisualDefinition` directly still
+      // see a valid `def.pit`.
+      centreline: [],
+      boxes_xy: [],
     },
     sectorBreaks: [0.33, 0.66],
     elevationAmplitude,

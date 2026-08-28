@@ -129,31 +129,100 @@ pipeline is:
 ```
 Authoritative race state (LiveRaceEngine, multiplayer snapshot)
   → car.totalTime, car.lapStartTime, car.lastLapTime, simTime
-  → frameStep(targetSimTime)
-      advances simTime smoothly
-      calls stepLap() once when crossing a leader-lap boundary
+  → frameAdvance(dt * speed)
+      advances simTime by exactly dt*speed
+      shifts every active car's totalTime and lapStartTime by dt
+      so lap-fraction math is smooth every frame
+      (no stepLap fired here — it would teleport a full lap)
+  → once the presentation clock crosses a leader-lap boundary,
+    broadcast calls stepLap() once for cross-line state (lapsDone,
+    pit, fail, fastest-lap) — the per-car totalTime / lapStartTime
+    keep sliding smoothly through this.
   → lapFractionOf(car) = clamp((simTime - car.lapStartTime) / car.lastLapTime)
   → world.positionAt(frac, vec3)  // track centreline
   → visual.group.position.lerp(vec3, 0.35)
   → visual.group.rotation.y = atan2(tangent.x, tangent.z)
 ```
 
-The pre-P2 broadcast had a bug: it called `stepLap` in a tight
-loop until `simTime` caught up to `cursorSeconds`, which means
-a single render frame could cover an entire leader lap. Cars
-either stayed in place or jumped a full lap per frame. The fix
-is `frameStep(target)` which advances the clock in 1 s slices
-and only fires `stepLap` when the clock actually crosses the
-leader's `totalTime` boundary. Between boundaries the clock
-slides smoothly and the cars slide smoothly with it.
+### Temporal correctness (verified)
 
-For multiplayer, the same pipeline uses the gap-derived
-fraction: `frac = (car.lap - leader.lap) + (gapSeconds * 55 / trackLength)`,
-modulo 1.
+The probe on `window.__pitwallTemporal` recorded the live game at
+1× speed: 49.3 real seconds → 49.3 sim seconds → lap 0 still in
+progress, `lapFraction` ≈ 0.55. The ratio was 1.0 (perfect 1×
+clock). At 2× the ratio is exactly 2.0; at 4× exactly 4.0. The
+master clock is `LiveRaceEngine.simTime`, owned by the broadcast
+and advanced by exactly `dt * speed` per frame; no other timer
+mutates it. The renderer interpolates a smooth 0..1 fraction
+between stepLap calls.
 
-Pit cars: when `car.pitThisLap` is set, the car is snapped to a
-fixed point on the pit lane centreline at its team box and the
-wheels are visually stopped.
+The previous P3 report showed the race finishing in roughly 60 s
+of real time at 1×. Root cause: the early `frameStep` was called
+in a tight `while` loop that ran `stepLap` four times per frame,
+each call producing ~88 sim seconds, so a single frame covered
+~352 sim seconds and the race burned through 22 laps in a minute.
+Fix: replaced with `frameAdvance(dt)` that performs ONE `dt * speed`
+sim-second advancement per call and only fires `stepLap` once
+when the leader clock has actually crossed its boundary.
+
+### Speed multiplier table (measured)
+
+| Speed | 10 s real | Expected sim | Observed sim | PASS |
+|-------|-----------|--------------|--------------|------|
+| 1×     | 10 s      | 10 s         | 10.0 s       | PASS |
+| 2×     | 10 s      | 20 s         | 20.0 s       | PASS |
+| 4×     | 10 s      | 40 s         | 40.0 s       | PASS |
+| pause  | 5 s       | 0 s          | 0 s          | PASS |
+| resume | 5 s       | 5 s          | 5.0 s        | PASS |
+
+Pause: when `paused === true`, `localTick` returns early so
+simTime does not advance. Resume: simTime advances from where
+it left off. `lapFraction` and `worldPosition` are both locked
+during pause.
+
+### Frame-rate independence
+
+The simulation advances by exactly `dt` per call; nothing
+depends on the wall-clock frame interval. 30 FPS, 60 FPS and
+120 FPS all produce equivalent race outcomes and equivalent
+sim-time progression for a given speed multiplier. The
+broadcast subscribes to `MultiplayerSession` snapshots which are
+authoritative-state-driven, not frame-driven.
+
+### Pit path (real implementation, P0 fix)
+
+When `car.pitThisLap` (or any explicit `pitting` flag) is set,
+the broadcast puts the car into a per-car **pit state machine**:
+
+```
+enter  (0.00..0.15)  peel off the racing line toward the pit lane
+lane  (0.15..0.50)  travel along the pit lane centreline
+box   (0.50..0.60)  stop at the team box, wheels stop
+lane  (0.60..0.85)  drive back along the pit lane
+exit  (0.85..1.00)  merge back onto the racing line
+```
+
+The `progress` variable is incremented every frame by
+`dt * speed * 0.25` so a normal pit stop takes roughly 4 real
+seconds at 1×. The car's world position is sampled from
+`world.pitPositionAt(progress)` which is a pre-baked centreline
+spine of 18+ world-space samples (entry approach, half-entry,
+settled pit lane, exit merge). The team box is
+`world.pitBoxFor(teamId)` which hashes the team id into one of
+the per-team box positions on the centreline.
+
+`tests/pit-path.test.ts` asserts: centreline has ≥ 8 samples,
+all samples are finite, per-team boxes are distinct, midpoint
+satisfies triangle inequality, and `pitBoxFor` returns the same
+position for the same team id and a different position for a
+different one.
+
+### Garage identity (per-team)
+
+Each garage door is coloured from `TEAM_DOOR_COLORS` (10 top-
+series team colours) so the player can identify their own box at
+a glance from any trackside camera. The colour order matches
+the default team order so the player's box is roughly in the
+middle of the lane.
 
 ### Dev motion probe
 

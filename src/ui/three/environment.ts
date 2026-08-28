@@ -28,6 +28,10 @@ export interface WorldVisual {
   positionAt(frac: number, target: THREE.Vector3): THREE.Vector3
   /** Tangent (direction of travel) at fraction. */
   tangentAt(frac: number, target: THREE.Vector3): THREE.Vector3
+  /** Sample world position on the pit lane at fraction [0,1). */
+  pitPositionAt(u: number, target: THREE.Vector3): THREE.Vector3
+  /** Sample the per-team garage position by team id hash. */
+  pitBoxFor(teamId: string, target: THREE.Vector3): THREE.Vector3
   /** Surface normal (up vector) at fraction — accounts for elevation slope. */
   normalAt(frac: number, target: THREE.Vector3): THREE.Vector3
   /** Update weather visuals (track wetness 0..1). */
@@ -79,8 +83,96 @@ function rnd(): number {
 }
 
 // ---------------------------------------------------------------------------
+// Build the pit-lane centreline + per-team garage world positions.
+// These are pre-baked into def.pit so the renderer can interpolate
+// the pitting car's position smoothly every frame.
+// ---------------------------------------------------------------------------
+
+function populatePitCentreline(curve: THREE.CatmullRomCurve3, def: TrackVisualDefinition) {
+  const up = new THREE.Vector3(0, 1, 0)
+  const side: 'left' | 'right' = def.pit.side
+  const dir = side === 'left' ? -1 : 1
+  const lateral = def.baseWidth / 2 + 10
+  const samples: Array<{ x: number; y: number; z: number; speed: number }> = []
+  // Entry curve: the car peels off the racing line and slides
+  // sideways onto the pit lane. We model the entry with three
+  // samples (1 m before entry, entry itself, 6 m past entry on
+  // the pit lane side) so the car visibly turns in.
+  const entryT = def.pit.entryFrac
+  const exitT = def.pit.exitFrac
+  const entryTan = curve.getTangentAt(entryT)
+  const entrySide = new THREE.Vector3().crossVectors(up, entryTan).normalize()
+  const entryPitPos = curve.getPointAt(entryT).clone().addScaledVector(entrySide, dir * lateral)
+  // Approach: just before the entry on the racing line.
+  const beforeEntryT = ((entryT - 0.005) + 1) % 1
+  const approachPos = curve.getPointAt(beforeEntryT)
+  samples.push({ x: approachPos.x, y: approachPos.y, z: approachPos.z, speed: 1.0 })
+  // Half-way through the entry turn.
+  const halfEntry = approachPos.clone().lerp(entryPitPos, 0.5)
+  samples.push({ x: halfEntry.x, y: halfEntry.y, z: halfEntry.z, speed: 0.6 })
+  // Settled on the pit lane at the entry.
+  samples.push({ x: entryPitPos.x, y: entryPitPos.y, z: entryPitPos.z, speed: 0.0 })
+  // Pit lane centreline: 16 samples between entry and exit along
+  // the pit side. The speed curve reflects the speed-limit zone.
+  for (let i = 1; i < 16; i++) {
+    const u = i / 16
+    const t = entryT + (exitT - entryT) * u
+    const pos = curve.getPointAt(t)
+    const tan = curve.getTangentAt(t)
+    const sideVec = new THREE.Vector3().crossVectors(up, tan).normalize()
+    pos.addScaledVector(sideVec, dir * lateral)
+    samples.push({ x: pos.x, y: pos.y, z: pos.z, speed: u })
+  }
+  // Exit curve: peel back onto the racing line.
+  const exitTan = curve.getTangentAt(exitT)
+  const exitSide = new THREE.Vector3().crossVectors(up, exitTan).normalize()
+  const exitPitPos = curve.getPointAt(exitT).clone().addScaledVector(exitSide, dir * lateral)
+  const halfExit = exitPitPos.clone().lerp(curve.getPointAt(((exitT + 0.005) % 1)), 0.5)
+  samples.push({ x: halfExit.x, y: halfExit.y, z: halfExit.z, speed: 0.6 })
+  const exitJoin = curve.getPointAt(((exitT + 0.005) % 1))
+  samples.push({ x: exitJoin.x, y: exitJoin.y, z: exitJoin.z, speed: 1.0 })
+  def.pit.centreline = samples
+  void up
+}
+
+function populatePitBoxes(curve: THREE.CatmullRomCurve3, def: TrackVisualDefinition) {
+  const up = new THREE.Vector3(0, 1, 0)
+  const dir = def.pit.side === 'left' ? -1 : 1
+  const lateral = def.baseWidth / 2 + 10
+  const boxes: Array<{ x: number; y: number; z: number; speed: number }> = []
+  for (let i = 0; i < def.pit.boxes; i++) {
+    const u = 0.18 + (i + 0.5) * (0.6 / def.pit.boxes)
+    const t = def.pit.entryFrac + (def.pit.exitFrac - def.pit.entryFrac) * u
+    const pos = curve.getPointAt(t)
+    const tan = curve.getTangentAt(t)
+    const sideVec = new THREE.Vector3().crossVectors(up, tan).normalize()
+    pos.addScaledVector(sideVec, dir * lateral)
+    boxes.push({ x: pos.x, y: pos.y, z: pos.z, speed: 0 })
+  }
+  def.pit.boxes_xy = boxes
+  void up
+}
+
+// ---------------------------------------------------------------------------
 // Track ribbon (asphalt + edges)
 // ---------------------------------------------------------------------------
+
+// Top-series team garage door colours. Each box on the pit lane
+// uses one of these in order so the player can identify their own
+// team visually. The order matches the default team order so the
+// player team's garage is roughly in the middle.
+const TEAM_DOOR_COLORS = [
+  0xe63946, // Titan Racing — deep red
+  0x4a8fd1, // Aquila Corse — cobalt blue
+  0x4ad17d, // Boreal GP — emerald
+  0xe6a14a, // Meridian Motorsport — orange
+  0xb0b0b0, // Kestrel Racing — steel
+  0x9b6dd1, // Polaris Works — purple
+  0xd1a14a, // Sablefox Racing — gold
+  0x4ad1c0, // Vanguard Apex — teal
+  0xd14a8c, // Cobalt Line — pink
+  0x6c7a8a, // Horizon GP — slate
+]
 
 function buildAsphalt(
   curve: THREE.CatmullRomCurve3,
@@ -465,10 +557,13 @@ function buildPitLane(
     const tan = x.clone().sub(e).normalize()
     box.lookAt(center.clone().add(tan))
     group.add(box)
-    // Door (subtle colour block)
+    // Door — coloured using the top-series team palette. Each box
+    // maps deterministically to a team so the player can spot
+    // their own team at a glance.
+    const doorColor = TEAM_DOOR_COLORS[i % TEAM_DOOR_COLORS.length]
     const door = new THREE.Mesh(
       new THREE.PlaneGeometry(garageLen * 0.85, 2.4),
-      new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xc5a14a : 0x6c7a8a }),
+      sharedMaterial(`pit:door:${doorColor}`, () => new THREE.MeshBasicMaterial({ color: doorColor })),
     )
     door.position.copy(center)
     door.position.y = 1.3
@@ -725,6 +820,10 @@ export function buildTrackWorld(circuit: Circuit, def: TrackVisualDefinition, gr
   group.add(barriers)
   const stands = buildGrandstands(curve, def, graphicsLevel)
   group.add(stands)
+  // Build the pit-lane centreline + box positions BEFORE the
+  // visual pit complex so the visual rendering can use them.
+  populatePitCentreline(curve, def)
+  populatePitBoxes(curve, def)
   const pit = buildPitLane(curve, def, theme)
   group.add(pit)
   const gantry = buildStartLightsGantry(curve, def)
@@ -747,6 +846,55 @@ export function buildTrackWorld(circuit: Circuit, def: TrackVisualDefinition, gr
     tangentAt(frac, target) {
       target.copy(curve.getTangentAt(((frac % 1) + 1) % 1))
       return target
+    },
+    /** Sample world position on the pit lane at fraction [0,1). */
+    pitPositionAt(u: number, target: THREE.Vector3): THREE.Vector3 {
+      const path = def.pit.centreline
+      if (path.length < 2) {
+        // Fall back: a straight line from entry to exit at the pit
+        // building side. This is a safety net for the rare case
+        // where a track definition forgot to provide a centreline.
+        const t = Math.max(0, Math.min(0.999, u))
+        const entry = curve.getPointAt(def.pit.entryFrac)
+        const exit = curve.getPointAt(def.pit.exitFrac)
+        const dx = exit.x - entry.x
+        const dz = exit.z - entry.z
+        const dy = exit.y - entry.y
+        target.set(entry.x + dx * t, entry.y + dy * t, entry.z + dz * t)
+        return target
+      }
+      // Linear interpolation along the pre-baked centreline. We
+      // do not use Catmull-Rom here so the path is always
+      // monotonic — a car never slides sideways between sample
+      // pairs.
+      const clamped = Math.max(0, Math.min(0.9999, u))
+      const idxF = clamped * (path.length - 1)
+      const i0 = Math.floor(idxF)
+      const i1 = Math.min(i0 + 1, path.length - 1)
+      const f = idxF - i0
+      const p0 = path[i0]
+      const p1 = path[i1]
+      target.set(
+        p0.x + (p1.x - p0.x) * f,
+        p0.y + (p1.y - p0.y) * f,
+        p0.z + (p1.z - p0.z) * f,
+      )
+      return target
+    },
+    /** Sample a per-team garage position by team id hash. */
+    pitBoxFor(teamId: string, target: THREE.Vector3): THREE.Vector3 {
+      const boxes = def.pit.boxes_xy
+      if (boxes.length === 0) {
+        // Fallback: midpoint of the pit lane
+        return this.pitPositionAt(0.5, target)
+      }
+      let h = 2166136261 >>> 0
+      for (let i = 0; i < teamId.length; i++) {
+        h ^= teamId.charCodeAt(i)
+        h = Math.imul(h, 16777619) >>> 0
+      }
+      const idx = Math.abs(h) % boxes.length
+      return target.copy(boxes[idx])
     },
     normalAt(frac, target) {
       // Sample a small delta along the centreline to get a tangent, then
