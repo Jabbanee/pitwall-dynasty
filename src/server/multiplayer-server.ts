@@ -115,9 +115,16 @@ export class MultiplayerLobby {
   /** Convenience for the in-progress round (set when the race finishes). */
   roundResults?: ReturnType<LiveRaceEngine['results']>
 
-  constructor(public hostPlayerId: string) {
+  constructor(public hostPlayerId: string, options?: { seed?: number }) {
     lobbyCounter++
-    this.code = codeFromSeed(lobbyCounter * 7919 + Date.now())
+    // Optional explicit seed is reserved for tests / deterministic
+    // development runs. Production callers (the WebSocket server)
+    // omit it and the lobby derives a fresh unpredictable seed so
+    // each real multiplayer championship still feels random.
+    this.fixedSeed = options?.seed
+    this.code = this.fixedSeed !== undefined
+      ? codeFromSeed(this.fixedSeed)
+      : codeFromSeed(lobbyCounter * 7919 + Date.now())
     // The list of teams available for selection is the default roster,
     // sliced to the configured teamCount. It's the same set the
     // championship is built from, so the client's team picker is
@@ -126,6 +133,13 @@ export class MultiplayerLobby {
       teamId: t.id, name: t.name, shortName: t.shortName, colors: t.colors,
     }))
   }
+
+  /**
+   * When the constructor is given an explicit seed, the lobby pins
+   * both the lobby code and the championship seed. Production lobbies
+   * (no seed) get a fresh `Date.now()`-derived seed every time.
+   */
+  private readonly fixedSeed: number | undefined
 
   // ----- Lobby management -----
 
@@ -204,7 +218,11 @@ export class MultiplayerLobby {
 
   /** Every championship gets fresh, isolated state — drivers included. */
   private buildChampionship() {
-    const seed = (Date.now() ^ 0x5eed) >>> 0
+    // Pin the championship seed when the lobby was constructed with
+    // an explicit seed (tests / deterministic dev). Otherwise, like
+    // before, derive a fresh unpredictable seed from the wall clock
+    // so production championships still feel random.
+    const seed = this.fixedSeed !== undefined ? this.fixedSeed : (Date.now() ^ 0x5eed) >>> 0
     const rng = createRng(seed)
     const teams = buildDefaultTeams().slice(0, this.config.teamCount)
 

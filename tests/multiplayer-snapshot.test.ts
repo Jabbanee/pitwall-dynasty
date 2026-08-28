@@ -14,7 +14,13 @@ import { MultiplayerLobby, DEFAULT_LOBBY_CONFIG } from '../src/server/multiplaye
  */
 
 function makeLobby(): MultiplayerLobby {
-  const lobby = new MultiplayerLobby('host1')
+  // Pin the seed so every test in this file starts from the same
+  // championship configuration. Without a fixed seed the lobby
+  // derives its seed from Date.now(), which means the team
+  // strengths, calendar order and driver state are non-deterministic
+  // and the test suite can flake on rare seeds (e.g. when the
+  // d1 driver retires before the test sends a PACE_PUSH command).
+  const lobby = new MultiplayerLobby('host1', { seed: 0x5eed })
   lobby.join('host1', 'Host')
   return lobby
 }

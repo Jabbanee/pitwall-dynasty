@@ -3,7 +3,9 @@ import { el, toast, fmtRaceClock } from '../dom'
 import { store } from '../../state/store'
 import { mpSession, type MultiplayerView } from '../../client/multiplayer-session'
 import type { RaceSnapshot, LobbySnapshot, ChampionshipSummary } from '../../client/multiplayer-client'
-import { buildTrackMeshes, type TrackMeshes } from './track3d'
+import { buildTrackWorld, type WorldVisual } from './environment'
+import { getTrackVisualDefinition } from './track-visual'
+import { TvDirector, type CameraMode, type DirectorEvent, type CarPositionSample } from './cameras'
 import { createCar, type CarVisual } from './car3d'
 import { TYRES } from '../../core/tyres'
 import { createCommentaryDisplay } from '../../media/commentary-display'
@@ -62,7 +64,43 @@ export function renderBroadcast3D(root: HTMLElement) {
   const mpBadge = el('div', { class: 'b3d-mp-badge' })
   const controls = el('div', { class: 'broadcast-controls' })
 
-  stage.append(topHud, followBar, battleStack, commentaryFeed, radioFeed, strategyPanel, timingMini, mpBadge)
+  // Camera mode badge — TV Director label, sits in the top-right
+  // corner so the player can see what mode the broadcast is in.
+  const cameraBadge = el('div', { class: 'b3d-camera-badge' }, 'TV DIRECTOR')
+  ;(wrap as unknown as { __cameraBadge?: HTMLElement }).__cameraBadge = cameraBadge
+
+  // Banner — flashes "LIGHTS OUT", "FINAL LAP", "CHEQUERED FLAG" on race events.
+  const eventBanner = el('div', { class: 'b3d-event-banner' })
+  eventBanner.style.opacity = '0'
+  stage.appendChild(eventBanner)
+
+  function showBanner(text: string, durationMs: number, accent: 'start' | 'flag' | 'lap' = 'start') {
+    eventBanner.textContent = text
+    eventBanner.dataset.accent = accent
+    eventBanner.style.opacity = '1'
+    setTimeout(() => { eventBanner.style.opacity = '0' }, durationMs)
+  }
+
+  // Manual camera selector — sits below the badge.
+  const cameraSelector = el('div', { class: 'b3d-camera-selector' })
+  const cameraOptions: Array<{ mode: CameraMode; label: string }> = [
+    { mode: 'director', label: 'TV DIRECTOR' },
+    { mode: 'helicopter', label: 'HELICOPTER' },
+    { mode: 'trackside', label: 'TRACKSIDE' },
+    { mode: 'onboard', label: 'T-CAM' },
+    { mode: 'leader', label: 'LEADER' },
+    { mode: 'pit-lane', label: 'PIT LANE' },
+  ]
+  for (const opt of cameraOptions) {
+    const btn = el('button', { class: 'b3d-cam-btn' }, opt.label)
+    btn.addEventListener('click', () => {
+      const fn = (wrap as unknown as { __setCameraMode?: (m: CameraMode) => void }).__setCameraMode
+      if (fn) fn(opt.mode)
+    })
+    cameraSelector.appendChild(btn)
+  }
+
+  stage.append(topHud, followBar, battleStack, commentaryFeed, radioFeed, strategyPanel, timingMini, mpBadge, cameraBadge, cameraSelector)
   wrap.append(stage)
   root.appendChild(wrap)
   root.appendChild(controls)
@@ -76,6 +114,7 @@ export function renderBroadcast3D(root: HTMLElement) {
   let myDriverIds: string[] = []
   let running = true
   let battleNotifications: Array<BattleGroup & { shownAt: number }> = []
+  let currentBattles: BattleGroup[] = []
   const cameraMode: 'heli' | 'map' = 'heli'
   const commentary = createCommentaryDisplay()
   type LocalEngine = {
@@ -101,6 +140,13 @@ export function renderBroadcast3D(root: HTMLElement) {
   scene.background = new THREE.Color(0x0a0e14)
   scene.fog = new THREE.Fog(0x0a0e14, 500, 1400)
 
+  // Lights — updated by weather and theme.
+  const hemi = new THREE.HemisphereLight(0xbfd1da, 0x324428, 0.65)
+  scene.add(hemi)
+  const dir = new THREE.DirectionalLight(0xfff1d1, 0.95)
+  dir.position.set(120, 220, 80)
+  scene.add(dir)
+
   const camera = new THREE.PerspectiveCamera(55, 16 / 9, 1, 3000)
   const camPos = new THREE.Vector3(0, 120, 160)
   const camTarget = new THREE.Vector3()
@@ -115,7 +161,7 @@ export function renderBroadcast3D(root: HTMLElement) {
   const car3ds = new Map<string, Car3D>()
 
   // Track
-  let track: TrackMeshes | null = null
+  let track: WorldVisual | null = null
 
   function getActiveCircuit() {
     if (championship?.circuit) {
@@ -134,9 +180,108 @@ export function renderBroadcast3D(root: HTMLElement) {
     const c = getActiveCircuit()
     if (!c) return
     if (!track) {
-      track = buildTrackMeshes(c)
+      const def = getTrackVisualDefinition(c)
+      const level = graphicsLevelFromSettings()
+      track = buildTrackWorld(c, def, level)
       scene.add(track.group)
+      // Apply the environment theme to the sky / fog / lights.
+      const theme = track.theme
+      scene.background = new THREE.Color(theme.sky)
+      scene.fog = new THREE.Fog(theme.fog, 380, 1500)
+      hemi.color = new THREE.Color(theme.hemiSky)
+      hemi.groundColor = new THREE.Color(theme.hemiGround)
+      dir.color = new THREE.Color(theme.sun)
+      const [sx, sy, sz] = theme.sunDir
+      dir.position.set(sx * 220, sy * 220, sz * 220)
+      // Spray particles — small Points cloud that grows in wet
+      // conditions. Pooled for performance.
+      ensureSpray()
     }
+  }
+
+  // --- Spray particles (wet track) ---
+  let sprayGeo: THREE.BufferGeometry | null = null
+  let sprayPoints: THREE.Points | null = null
+  let sprayVel: Float32Array | null = null
+  let sprayLife: Float32Array | null = null
+  const SPRAY_MAX = 220
+  function ensureSpray() {
+    if (sprayPoints) return
+    sprayGeo = new THREE.BufferGeometry()
+    const pos = new Float32Array(SPRAY_MAX * 3)
+    sprayVel = new Float32Array(SPRAY_MAX * 3)
+    sprayLife = new Float32Array(SPRAY_MAX)
+    sprayGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const sprite = new THREE.PointsMaterial({
+      color: 0xdde2e8,
+      size: 0.6,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    })
+    sprayPoints = new THREE.Points(sprayGeo, sprite)
+    scene.add(sprayPoints)
+  }
+  function tickSpray(dt: number, wetness: number) {
+    if (!sprayPoints || !sprayGeo || !sprayVel || !sprayLife) return
+    const posAttr = sprayGeo.attributes.position as THREE.BufferAttribute
+    const arr = posAttr.array as Float32Array
+    const opacityMax = Math.min(0.8, wetness * 1.2)
+    ;(sprayPoints.material as THREE.PointsMaterial).opacity = opacityMax
+    for (let i = 0; i < SPRAY_MAX; i++) {
+      if (sprayLife[i] > 0) {
+        sprayLife[i] -= dt
+        arr[i * 3] += sprayVel[i * 3] * dt
+        arr[i * 3 + 1] += sprayVel[i * 3 + 1] * dt
+        arr[i * 3 + 2] += sprayVel[i * 3 + 2] * dt
+        sprayVel[i * 3 + 1] -= 4 * dt // light gravity
+        continue
+      }
+      // Respawn from a random car if it's wet enough.
+      if (wetness > 0.05 && Math.random() < 0.16) {
+        const carList = Array.from(car3ds.values())
+        if (carList.length === 0) continue
+        const c = carList[Math.floor(Math.random() * carList.length)]
+        if (!c) continue
+        const p = c.visual.group.position
+        const heading = c.visual.group.rotation.y
+        const back = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading))
+        arr[i * 3] = p.x - back.x * 4
+        arr[i * 3 + 1] = p.y + 0.4
+        arr[i * 3 + 2] = p.z - back.z * 4
+        sprayVel[i * 3] = -back.x * 6 + (Math.random() - 0.5) * 2
+        sprayVel[i * 3 + 1] = 3 + Math.random() * 2
+        sprayVel[i * 3 + 2] = -back.z * 6 + (Math.random() - 0.5) * 2
+        sprayLife[i] = 0.6 + Math.random() * 0.3
+      }
+    }
+    posAttr.needsUpdate = true
+  }
+  // Expose dispose to the cleanup observer.
+  function disposeSpray() {
+    if (sprayPoints) {
+      scene.remove(sprayPoints)
+      sprayPoints.geometry.dispose()
+      ;(sprayPoints.material as THREE.Material).dispose()
+      sprayPoints = null
+      sprayGeo = null
+    }
+  }
+
+  function applyWeatherVisuals(wetness: number, condition: string) {
+    if (!track) return
+    const theme = track.theme
+    // Wet track darkens the asphalt and adds a cool sky tint.
+    const skyBase = new THREE.Color(theme.sky)
+    const skyWet = skyBase.clone().multiplyScalar(0.55).offsetHSL(0, 0.05, -0.05)
+    const wet = Math.max(0, Math.min(1, wetness))
+    scene.background = new THREE.Color().lerpColors(skyBase, skyWet, wet)
+    const fogBase = new THREE.Color(theme.fog)
+    const fogWet = fogBase.clone().multiplyScalar(0.7)
+    scene.fog = new THREE.Fog(new THREE.Color().lerpColors(fogBase, fogWet, wet), 380 - 120 * wet, 1500 - 400 * wet)
+    dir.intensity = 0.95 - 0.45 * wet
+    hemi.intensity = 0.65 - 0.2 * wet
+    if (condition === 'heavyRain') dir.intensity = 0.4
   }
 
   function teamColorsOf(teamId: string): { primary: string; secondary: string } {
@@ -196,6 +341,17 @@ export function renderBroadcast3D(root: HTMLElement) {
   const tmpPos = new THREE.Vector3()
   const tmpTan = new THREE.Vector3()
 
+  function compoundIndex(tyre: string | undefined): number {
+    if (!tyre) return 1
+    const t = tyre.toLowerCase()
+    if (t.startsWith('soft')) return 0
+    if (t.startsWith('medium')) return 1
+    if (t.startsWith('hard')) return 2
+    if (t.startsWith('inter')) return 3
+    if (t.startsWith('wet')) return 4
+    return 1
+  }
+
   function updateCarPositions(snapshot: RaceSnapshot) {
     if (!track) return
     const leader = snapshot.cars.find((c) => c.position === 1)
@@ -212,13 +368,42 @@ export function renderBroadcast3D(root: HTMLElement) {
       c3d.visual.group.position.lerp(tmpPos, 0.25)
       const heading = Math.atan2(tmpTan.x, tmpTan.z)
       c3d.visual.group.rotation.y = heading
-      c3d.visual.setSpeed(55)
+      // Approximate visual speed (m/s) from the gap-vs-leader delta
+      // plus a base pace. The simulation owns the actual speed.
+      const speed = 55 + (car.gapSeconds < 0 ? -car.gapSeconds * 1.4 : 0)
+      c3d.visual.update(0, speed, 0, 0)
+      c3d.visual.setCompound(compoundIndex(car.tyre))
+      c3d.visual.setRetired(!!car.retired)
     }
   }
 
-  // --- Helicopter camera ---
-  const camDesired = new THREE.Vector3()
-  const camLook = new THREE.Vector3()
+  // --- Camera + TV Director ---
+  const director = new TvDirector()
+  let directorMode: CameraMode = 'director'
+
+  function setCameraMode(mode: CameraMode) {
+    directorMode = mode
+    director.setManualMode(mode)
+  }
+  // Expose the mode switcher on the broadcast wrap so UI buttons
+  // (helicopter / trackside / etc) can drive it.
+  ;(wrap as unknown as { __setCameraMode?: (m: CameraMode) => void }).__setCameraMode = setCameraMode
+  ;(wrap as unknown as { __getCameraMode?: () => CameraMode }).__getCameraMode = () => directorMode
+  ;(wrap as unknown as { __pushEvent?: (e: DirectorEvent) => void }).__pushEvent = (e) => director.pushEvent(e)
+
+  function graphicsLevelFromSettings(): 0 | 1 | 2 | 3 {
+    try {
+      const raw = localStorage.getItem('pitwall-dynasty.settings')
+      if (!raw) return 2
+      const parsed = JSON.parse(raw)
+      const q = parsed?.graphicsQuality
+      if (q === 'low') return 0
+      if (q === 'medium') return 1
+      if (q === 'high') return 2
+      if (q === 'ultra') return 3
+    } catch (_) { /* ignore */ }
+    return 2
+  }
 
   function updateCamera(dt: number) {
     if (!track) return
@@ -227,21 +412,49 @@ export function renderBroadcast3D(root: HTMLElement) {
       targetDriverId = myDriverIds[0] ?? race?.cars.find((c) => c.position === 1)?.driverId ?? null
     }
     const c3d = targetDriverId ? car3ds.get(targetDriverId) : undefined
-    if (c3d) {
-      const p = c3d.visual.group.position
-      const heading = c3d.visual.group.rotation.y
-      const back = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)).multiplyScalar(-46)
-      camDesired.set(p.x + back.x, p.y + 34, p.z + back.z)
-      camLook.set(p.x - back.x * 0.4, p.y + 2, p.z - back.z * 0.4)
-    } else {
-      camDesired.set(0, 320, 380)
-      camLook.set(0, 0, 0)
+    const followedSample: CarPositionSample | null = c3d
+      ? {
+          carId: c3d.driverId,
+          position: c3d.visual.group.position.clone(),
+          speed: c3d.lastLap > 0 ? (track.totalLength / c3d.lastLap) : 0,
+          lapFrac: lapFracOf(c3d.driverId),
+        }
+      : null
+    const leaderCar = race?.cars.find((c) => c.position === 1 && !c.retired)
+    const leaderC3d = leaderCar ? car3ds.get(leaderCar.driverId) : null
+    const leaderSample: CarPositionSample | null = leaderC3d
+      ? {
+          carId: leaderC3d.driverId,
+          position: leaderC3d.visual.group.position.clone(),
+          speed: 0,
+          lapFrac: lapFracOf(leaderC3d.driverId),
+        }
+      : null
+    const battle: CarPositionSample[] = []
+    for (const b of currentBattles) {
+      for (const id of b.driverIds) {
+        const c = car3ds.get(id)
+        if (c) battle.push({ carId: id, position: c.visual.group.position.clone(), speed: 0, lapFrac: lapFracOf(id) })
+      }
     }
-    const lerp = 1 - Math.pow(0.05, dt)
-    camPos.lerp(camDesired, lerp)
-    camTarget.lerp(camLook, Math.min(1, lerp * 1.5))
+    const { target, cut } = director.solve(track, followedSample, leaderSample, battle, performance.now())
+    // Smoothly interpolate the camera position. CRITICAL events
+    // (race start, chequered flag, incident) cut for impact.
+    const lerp = cut ? 1 : 1 - Math.pow(0.06, dt)
+    camPos.lerp(target.position, lerp)
+    camTarget.lerp(target.lookAt, Math.min(1, lerp * 1.5))
     camera.position.copy(camPos)
     camera.lookAt(camTarget)
+    // Push the active label to the on-screen badge.
+    const modeBadge = (wrap as unknown as { __cameraBadge?: HTMLElement }).__cameraBadge
+    if (modeBadge) modeBadge.textContent = target.label
+  }
+
+  function lapFracOf(driverId: string): number {
+    if (!race) return 0
+    const c = race.cars.find((x) => x.driverId === driverId)
+    if (!c || !track) return 0
+    return Math.max(0, Math.min(0.999, c.lap / Math.max(1, race.totalLaps)))
   }
 
   function detectBattles(snapshot: RaceSnapshot): BattleGroup[] {
@@ -273,6 +486,7 @@ export function renderBroadcast3D(root: HTMLElement) {
 
   function updateBattleNotifications(snapshot: RaceSnapshot) {
     const battles = detectBattles(snapshot)
+    currentBattles = battles
     const now = Date.now()
     for (const b of battles) {
       if (b.priority < 60) continue
@@ -620,7 +834,11 @@ export function renderBroadcast3D(root: HTMLElement) {
   }
 
   // --- Wire MultiplayerSession view into the local view ---
+  let prevRacePhase: string | null = null
+  let prevLeaderId: string | null = null
+  let prevFinalLapSignaled = false
   const unsubscribe = mpSession.subscribe((v: MultiplayerView) => {
+    const prevRace = race
     lobby = v.lobby
     race = v.race
     championship = v.championship
@@ -645,6 +863,54 @@ export function renderBroadcast3D(root: HTMLElement) {
       pushRadio(race.radio)
       updateCommentary(race)
       refreshSpeedButtons()
+
+      // --- Director events ---
+      const now = performance.now()
+      const phase = race.phase ?? null
+      // Race start: when transitioning into a racing phase.
+      if (prevRacePhase !== 'race' && (phase === 'race' || phase === 'racing')) {
+        director.pushEvent({ kind: 'race-start', priority: 'CRITICAL', atTime: now })
+        showBanner('LIGHTS OUT', 2200, 'start')
+        prevFinalLapSignaled = false
+      }
+      // Chequered flag: phase moved to roundResults / finished.
+      if ((prevRacePhase === 'race' || prevRacePhase === 'racing') && phase && phase !== 'race' && phase !== 'racing') {
+        director.pushEvent({ kind: 'chequered-flag', priority: 'CRITICAL', atTime: now })
+        showBanner('CHEQUERED FLAG', 2600, 'flag')
+      }
+      // Final lap.
+      if (race.totalLaps > 0 && !prevFinalLapSignaled) {
+        const leaderCar = race.cars.find((c) => c.position === 1 && !c.retired)
+        if (leaderCar && leaderCar.lap >= race.totalLaps - 1) {
+          director.pushEvent({ kind: 'final-lap', priority: 'HIGH', carIds: [leaderCar.driverId], atTime: now })
+          showBanner('FINAL LAP', 2400, 'lap')
+          prevFinalLapSignaled = true
+        }
+      }
+      // Leader change.
+      const newLeader = race.cars.find((c) => c.position === 1 && !c.retired)
+      if (prevLeaderId && newLeader && newLeader.driverId !== prevLeaderId) {
+        director.pushEvent({ kind: 'leader-change', priority: 'HIGH', carIds: [newLeader.driverId, prevLeaderId], atTime: now })
+      }
+      if (newLeader) prevLeaderId = newLeader.driverId
+      // Pit stop / pit entry (player cars only — for the camera).
+      for (const c of race.cars) {
+        if (c.pitThisLap) {
+          if (myDriverIds.includes(c.driverId)) {
+            director.pushEvent({ kind: 'player-pit-event', priority: 'HIGH', carIds: [c.driverId], atTime: now })
+          }
+        }
+      }
+      // Overtake detection via position swaps from previous frame.
+      if (prevRace) {
+        for (const cur of race.cars) {
+          const before = prevRace.cars.find((x) => x.driverId === cur.driverId)
+          if (before && before.position > cur.position) {
+            director.pushEvent({ kind: 'overtake', priority: 'NORMAL', carIds: [cur.driverId], atTime: now })
+          }
+        }
+      }
+      prevRacePhase = phase
     }
   })
 
@@ -866,10 +1132,30 @@ export function renderBroadcast3D(root: HTMLElement) {
         updateTopHud(snap)
         pushRadio(snap.radio)
         updateCommentary(snap)
+        // Local director event emission for single-player mode
+        const now = performance.now()
+        const phase = (snap as { phase?: string }).phase ?? 'race'
+        if (prevRacePhase !== 'race' && (phase === 'race' || phase === 'racing')) {
+          director.pushEvent({ kind: 'race-start', priority: 'CRITICAL', atTime: now })
+          showBanner('LIGHTS OUT', 2200, 'start')
+        }
+        if ((prevRacePhase === 'race' || prevRacePhase === 'racing') && phase !== 'race' && phase !== 'racing') {
+          director.pushEvent({ kind: 'chequered-flag', priority: 'CRITICAL', atTime: now })
+          showBanner('CHEQUERED FLAG', 2600, 'flag')
+        }
+        prevRacePhase = phase
       }
     }
     updateCamera(dt)
     tickRequest(now)
+    // Apply weather visuals every frame so the sky / fog track the
+    // authoritative race condition without storing an extra flag.
+    if (track) {
+      const wetness = (race && (race as { trackWetness?: number }).trackWetness) ?? 0
+      const condition = (race && (race as { condition?: string }).condition) ?? 'dry'
+      applyWeatherVisuals(wetness, condition)
+      tickSpray(dt, wetness)
+    }
     renderer.render(scene, camera)
     requestAnimationFrame(frame)
   }
@@ -881,6 +1167,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       window.removeEventListener('resize', resize)
       for (const c of car3ds.values()) c.visual.dispose()
       car3ds.clear()
+      disposeSpray()
       // Dispose any leftover scene resources (track, lights, etc).
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh
