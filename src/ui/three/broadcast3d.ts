@@ -121,6 +121,7 @@ export function renderBroadcast3D(root: HTMLElement) {
     state: { simTime: number; leaderLap: number; totalLaps: number; trackWetness: number; condition: string; cars?: Array<{ driverId: string; lastLapTime: number; lapStartTime: number; lapsDone: number; totalTime: number; position: number; teamId: string; carNumber: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }> }
     isFinished: () => boolean
     stepLap: () => unknown
+    frameAdvance: (dt: number) => unknown
     frameStep: (dt: number) => unknown
     lapFractionOf: (car: { lastLapTime: number; lapStartTime: number }) => number
     orderedCars: () => Array<{ driverId: string; teamId: string; carNumber: number; position: number; lapsDone: number; totalTime: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }>
@@ -429,38 +430,81 @@ export function renderBroadcast3D(root: HTMLElement) {
     return 1
   }
 
-  function updateCarPositions(snapshot: RaceSnapshot) {
+  // Per-car pit state machine. We track how far along the pit
+  // lane centreline (0..1) each pitting car is. The position is
+  // interpolated between the racing line and the box, and then
+  // back to the racing line, so a pitting car visibly peels off,
+  // stops, and re-joins — no teleport.
+  type PitState = { stage: 'enter' | 'lane' | 'box' | 'exit'; progress: number; boxIdx: number }
+  const pitState = new Map<string, PitState>()
+  function ensurePitState(driverId: string, teamId: string, carNumber: number): PitState {
+    let s = pitState.get(driverId)
+    if (s) return s
+    let h = 2166136261 >>> 0
+    for (let i = 0; i < teamId.length; i++) {
+      h ^= teamId.charCodeAt(i)
+      h = Math.imul(h, 16777619) >>> 0
+    }
+    const boxIdx = Math.abs((h ^ carNumber * 0x9e3779b1)) >>> 0 % Math.max(1, track?.pit.boxes ?? 10)
+    s = { stage: 'enter', progress: 0, boxIdx }
+    pitState.set(driverId, s)
+    return s
+  }
+  function clearPitState(driverId: string) {
+    pitState.delete(driverId)
+  }
+
+  function updateCarPositions(snapshot: RaceSnapshot, dt: number) {
     if (!track) return
     const leader = snapshot.cars.find((c) => c.position === 1)
     const leaderLap = leader?.lap ?? 0
+    const dtSpeed = dt * speed
     for (const car of snapshot.cars) {
       const c3d = car3ds.get(car.driverId)
       if (!c3d) continue
-      // Pitting cars follow the pit lane centreline. We snap
-      // them to a fixed position near their team box. The
-      // presentation freezes the wheels and the body level for
-      // a moment of stillness.
-      if (car.pitThisLap || (car as { pitting?: boolean }).pitting) {
-        const c2 = (car as { teamId: string; carNumber: number })
-        const boxIdx = (Math.abs(hash01str(c2.teamId + ':' + c2.carNumber)) * track.pit.boxes) | 0
-        const u = (boxIdx + 0.5) / track.pit.boxes
-        const t = track.pit.entryFrac + (track.pit.exitFrac - track.pit.entryFrac) * u
-        track.positionAt(t, tmpPos)
-        // Offset laterally to the pit lane side
-        const tan = track.tangentAt(t, new THREE.Vector3())
-        const up = new THREE.Vector3(0, 1, 0)
-        const side = new THREE.Vector3().crossVectors(up, tan).normalize()
-        const dir = track.pit.side === 'left' ? -1 : 1
-        tmpPos.addScaledVector(side, dir * (track.trackWidth / 2 + 12))
-        tmpPos.y = track.theme.fog ? 0.6 : 0.6
+      const c2 = car as { teamId: string; carNumber: number; pitting?: boolean }
+      const pitting = !!car.pitThisLap || !!c2.pitting || pitState.has(car.driverId)
+      if (pitting) {
+        const state = ensurePitState(car.driverId, c2.teamId, c2.carNumber)
+        // Advance the state by dt*speed. The first 0..0.15 is the
+        // enter peel-off, 0.15..0.5 is the lane, 0.5..0.6 is the
+        // box stop, 0.6..0.85 is the lane back out, 0.85..1 is
+        // the exit merge.
+        state.progress = Math.min(1, state.progress + dtSpeed * 0.25)
+        if (state.progress < 0.15) state.stage = 'enter'
+        else if (state.progress < 0.5) state.stage = 'lane'
+        else if (state.progress < 0.6) state.stage = 'box'
+        else if (state.progress < 0.85) state.stage = 'lane'
+        else state.stage = 'exit'
+        // Sample the pit centreline at the progress.
+        track.pitPositionAt(state.progress, tmpPos)
+        // The car's heading follows the centreline tangent — we
+        // estimate it from two close samples.
+        const ahead = new THREE.Vector3()
+        track.pitPositionAt(Math.min(0.999, state.progress + 0.01), ahead)
         c3d.visual.group.position.copy(tmpPos)
-        // Face along the pit lane (tangent)
-        c3d.visual.group.rotation.y = Math.atan2(tan.x, tan.z)
-        // Stopped visual: tiny speed
-        c3d.visual.update(0, 0, 0, 0)
+        c3d.visual.group.position.y = 0.55
+        c3d.visual.group.rotation.y = Math.atan2(ahead.x - tmpPos.x, ahead.z - tmpPos.z)
+        // Speed in the box is zero; in the lane it is the speed
+        // limit; on the entry / exit peel it is reduced.
+        let visualSpeed = 0
+        if (state.stage === 'lane' || state.stage === 'enter' || state.stage === 'exit') {
+          visualSpeed = 22 // ~80 km/h
+        }
+        c3d.visual.update(0, visualSpeed, 0, 0)
         c3d.visual.setCompound(compoundIndex(car.tyre))
         c3d.visual.setRetired(!!car.retired)
+        // When the cycle completes, return the car to the
+        // racing line on the next frame.
+        if (state.progress >= 1) {
+          clearPitState(car.driverId)
+        }
         continue
+      } else if (pitState.has(car.driverId)) {
+        // The car was pitting last frame but is no longer pitting
+        // (race-finished pit stop released). Clear the state and
+        // fall through to the racing-line branch.
+        clearPitState(car.driverId)
       }
       // Use the local engine's lap-fraction helper for the
       // single-player case. It is the only place that has
@@ -502,15 +546,6 @@ export function renderBroadcast3D(root: HTMLElement) {
       c3d.visual.setCompound(compoundIndex(car.tyre))
       c3d.visual.setRetired(!!car.retired)
     }
-  }
-
-  function hash01str(s: string): number {
-    let h = 2166136261 >>> 0
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i)
-      h = Math.imul(h, 16777619) >>> 0
-    }
-    return ((h >>> 8) & 0xffffff) / 0xffffff
   }
 
   // --- Camera + TV Director ---
@@ -991,7 +1026,9 @@ export function renderBroadcast3D(root: HTMLElement) {
     ensureTrack()
     if (race) {
       ensureCars(race)
-      updateCarPositions(race)
+      // Multiplayer snapshot: pass a small dt so the pit state
+      // machine advances smoothly between server snapshots.
+      updateCarPositions(race, 0.05)
       updateBattleNotifications(race)
       updateStrategyPanel(race)
       updateTiming(race)
@@ -1054,7 +1091,8 @@ export function renderBroadcast3D(root: HTMLElement) {
   ensureTrack()
   if (race) {
     ensureCars(race)
-    updateCarPositions(race)
+    // Multiplayer: dt placeholder.
+    updateCarPositions(race, 0.05)
     updateBattleNotifications(race)
     updateStrategyPanel(race)
     updateTiming(race)
@@ -1141,11 +1179,28 @@ export function renderBroadcast3D(root: HTMLElement) {
     // car positions are smoothly interpolated) or calls
     // `stepLap` once if the clock has crossed a leader-lap
     // boundary.
-    const target = cursorSeconds + dt * speed
-    const events = e.frameStep(target) as Array<{ type: string; driverId?: string; detail?: string; t?: number }>
+    const events = e.frameAdvance(dt * speed) as Array<{ type: string; driverId?: string; detail?: string; t?: number }>
     cursorSeconds = e.state.simTime
     for (const ev of events) {
       void ev
+    }
+    // Reconcile lap-completion state: if the presentation clock
+    // has crossed a leader's lap boundary, call stepLap once so
+    // lapsDone, pit, fail, fastest-lap, etc. all stay coherent
+    // with the sim clock. The presentation clock (simTime) and
+    // per-car totalTime / lapStartTime keep sliding smoothly
+    // through this; only the side effects of stepLap fire here.
+    while (!e.isFinished()) {
+      const leader = e.orderedCars()[0]
+      if (!leader) break
+      if (e.state.simTime < leader.totalTime) break
+      const lapEvents = e.stepLap() as Array<{ type: string; driverId?: string; detail?: string; t?: number }>
+      for (const ev of lapEvents) {
+        void ev
+      }
+      if (e.isFinished()) break
+      // Safety: never run more than 2 lap updates per frame.
+      if (e.state.simTime < (leader.totalTime - 1)) break
     }
     if (e.isFinished()) {
       // commitLocalResults inlined to keep the code path self-contained
@@ -1285,6 +1340,44 @@ export function renderBroadcast3D(root: HTMLElement) {
     if (elapsed > 1500 && !motionProbeT2) motionProbeT2 = { pos: [sample.pos[0], sample.pos[1], sample.pos[2]], simTime, lap }
   }
 
+  // DEV-only TEMPORAL diagnostic. Every 1000 ms it captures the
+  // full temporal state of one car and writes it to
+  // `window.__pitwallTemporal` so the headless harness can verify
+  // 1x / 2x / 4x / pause / pit transitions. Off by default.
+  let temporalLastEmit = 0
+  function maybeTemporalProbe() {
+    if (typeof window === 'undefined') return
+    const enabled = (() => { try { return localStorage.getItem('pitwall-dynasty.temporalProbe') === '1' } catch (_) { return false } })()
+    if (!enabled) return
+    const now = performance.now()
+    if (now - temporalLastEmit < 1000) return
+    temporalLastEmit = now
+    const car = car3ds.values().next().value
+    if (!car) return
+    const lc = (localEngine?.state.cars ?? []).find((x) => x.driverId === car.driverId)
+    const lapFrac = lc && localEngine ? localEngine.lapFractionOf(lc) : 0
+    const speedMul = speed
+    const sample = {
+      wallTimeMs: now,
+      speedMultiplier: speedMul,
+      simTimeSeconds: localEngine?.state.simTime ?? 0,
+      raceClock: cursorSeconds,
+      leaderLap: localEngine?.state.leaderLap ?? 0,
+      driverLap: lc?.lapsDone ?? 0,
+      lapFraction: lapFrac,
+      lapStartTime: lc?.lapStartTime ?? 0,
+      estimatedLapTime: lc?.lastLapTime ?? 0,
+      paused,
+      worldPosition: [car.visual.group.position.x, car.visual.group.position.y, car.visual.group.position.z],
+    }
+    const probe = (window as unknown as { __pitwallTemporal?: { samples: Array<Record<string, unknown>>; baseline?: Record<string, unknown> } }).__pitwallTemporal
+    if (!probe) {
+      ;(window as unknown as { __pitwallTemporal?: { samples: Array<Record<string, unknown>> } }).__pitwallTemporal = { samples: [sample] }
+    } else {
+      probe.samples.push(sample)
+    }
+  }
+
   function frame(now: number) {
     if (!running) return
     const dt = Math.min(0.1, (now - lastFrame) / 1000)
@@ -1303,7 +1396,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       if (snap) {
         race = snap
         ensureCars(snap)
-        updateCarPositions(snap)
+        updateCarPositions(snap, dt)
         updateBattleNotifications(snap)
         updateStrategyPanel(snap)
         updateTiming(snap)
@@ -1336,6 +1429,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       tickRain(dt, condition)
     }
     maybeMotionProbe()
+    maybeTemporalProbe()
     renderer.render(scene, camera)
     requestAnimationFrame(frame)
   }

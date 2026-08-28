@@ -65,7 +65,7 @@ describe('LiveRaceEngine.frameStep — clock advance', () => {
     }
     engine.stepLap()
     const before = engine.state.simTime
-    engine.frameStep(before + 30)
+    engine.frameAdvance(30)
     expect(engine.state.simTime).toBeGreaterThanOrEqual(before)
   })
 
@@ -78,7 +78,7 @@ describe('LiveRaceEngine.frameStep — clock advance', () => {
     const car = cars[0]
     const before = engine.lapFractionOf(car)
     // Advance the clock without crossing a lap boundary.
-    engine.frameStep(engine.state.simTime + 5)
+    engine.frameAdvance(5)
     const after = engine.lapFractionOf(car)
     expect(before).toBeGreaterThanOrEqual(0)
     expect(before).toBeLessThan(1)
@@ -145,12 +145,35 @@ describe('motion progress — derived from authoritative state', () => {
 })
 
 describe('paused state — clock does not advance', () => {
-  it('frameStep is a no-op when target is in the past', () => {
+  it('frameAdvance(0) does not advance simTime', () => {
     const { engine } = makeEngineWithDrivers()
     engine.stepLap()
     const before = engine.state.simTime
-    // frameStep in the past does not advance.
-    engine.frameStep(before - 100)
+    engine.frameAdvance(0)
     expect(engine.state.simTime).toBe(before)
+  })
+  it('frameAdvance on finished engine is a no-op', () => {
+    const { engine } = makeEngineWithDrivers()
+    // burn enough steps to finish
+    for (let i = 0; i < 30; i++) engine.stepLap()
+    const before = engine.state.simTime
+    engine.frameAdvance(5)
+    expect(engine.state.simTime).toBe(before)
+  })
+  it('frameAdvance(dt) advances simTime by exactly dt', () => {
+    const { engine } = makeEngineWithDrivers()
+    engine.stepLap()
+    const before = engine.state.simTime
+    engine.frameAdvance(2.5)
+    expect(engine.state.simTime).toBeCloseTo(before + 2.5, 1)
+  })
+  it('frameAdvance at 1x is temporally correct', () => {
+    const { engine } = makeEngineWithDrivers()
+    engine.stepLap()
+    const before = engine.state.simTime
+    // 88 small steps = 88 sim-seconds, ~1 leader lap on a 88 s track
+    for (let i = 0; i < 88; i++) engine.frameAdvance(1)
+    const elapsed = engine.state.simTime - before
+    expect(elapsed).toBeCloseTo(88, 0)
   })
 })

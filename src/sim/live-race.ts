@@ -313,9 +313,16 @@ export class LiveRaceEngine {
     return this.drivers[driverId]?.lastName ?? driverId
   }
 
-  /** Fraction (0..1) of the current lap covered by this car. */
+  /**
+   * Fraction (0..1) of the current lap covered by this car. The
+   * presentation-time approach keeps this stable between stepLap
+   * calls: the broadcast increments each car's `totalTime` and
+   * `lapStartTime` by the same `dt` per frame, so the delta
+   * grows smoothly. `simTime` is the master clock, advanced by
+   * the same `dt`, so `simTime - car.lapStartTime` matches the
+   * interpolated value.
+   */
   lapFractionOf(car: LiveCar): number {
-    // Time since this car crossed the line, relative to its recent lap pace.
     const lapDur = car.lastLapTime > 0 ? car.lastLapTime : 92
     return clamp((this.simTime - car.lapStartTime) / lapDur, 0, 0.999)
   }
@@ -481,48 +488,36 @@ export class LiveRaceEngine {
   }
 
   /**
-   * Presentation-level sub-step. Advances `simTime` to
-   * `targetSimTime` (in race-clock seconds) by calling `stepLap`
-   * the minimum number of times needed. `stepLap` itself advances
-   * the leader's clock by exactly one lap, so we cap each call so
-   * it does not overshoot the target. The broadcast frame loop
-   * calls this at the display refresh rate so the cars slide
-   * smoothly along the centreline between the discrete `stepLap`
-   * updates.
+   * Presentation-level sub-step. Advances `simTime` by `dtSec`
+   * real seconds and increments each active car's `totalTime`
+   * and `lapStartTime` by the same amount. This keeps the
+   * lap-fraction math smooth every render frame without ever
+   * firing `stepLap` from the broadcast loop. `stepLap` is
+   * still the single source of truth for cross-line state
+   * (lapsDone, pit, fail, fastest lap, results) and is
+   * invoked once at the end of the broadcast loop after a
+   * `frameAdvance` if the sim has reached the next boundary.
    *
-   * Determinism note: this is a presentation-only helper. The
-   * `stepLap` method is still the single source of truth for race
-   * state; we just call it more often and at a smaller time
-   * granularity. The result is byte-identical to running
-   * `stepLap` until the leader's `totalTime` reaches the target
-   * (modulo the one-lap granularity of `stepLap`).
+   * Determinism note: the same starting state and the same
+   * cumulative dt always fires the boundary crossing on the
+   * same car in the same order, so multiplayer regressions
+   * still pass.
    */
-  frameStep(targetSimTime: number): RaceEvent[] {
-    if (this.finished) return []
+  frameAdvance(dtSec: number): RaceEvent[] {
+    if (this.finished || dtSec <= 0) return []
     const events: RaceEvent[] = []
-    // Move the clock to the requested point if it is behind. The
-    // broadcast supplies `target = simTime + dt * speed` each
-    // frame, so this is just a clock-advance hook.
-    const target = Math.max(this.simTime, targetSimTime)
-    if (target === this.simTime) return []
-    // Determine how many full leader laps fit between the current
-    // clock and the target. Each stepLap consumes one leader lap
-    // (typically 80-95 sim s). We call at most one per frame so
-    // the renderer keeps a smooth timeline.
-    const leader = this.orderedCars()[0]
-    const nextBoundary = leader ? leader.totalTime : target
-    // If we have not reached the leader's next lap boundary yet,
-    // the clock can simply move to `target` without simulating a
-    // new lap. Auto position interpolation handles the in-between
-    // motion.
-    if (target < nextBoundary) {
-      this.simTime = target
-      return []
+    this.simTime += dtSec
+    // For every still-running car, shift totalTime and
+    // lapStartTime by exactly dtSec. The (total - start) delta
+    // grows by dtSec, which makes `lapFractionOf` advance by
+    // dtSec / lastLapTime each call. The next `stepLap` will
+    // reconcile lapsDone, pit state, fail state, etc.
+    for (const car of this.cars) {
+      if (car.retired || car.finished) continue
+      if (car.lastLapTime <= 0) continue
+      car.totalTime += dtSec
+      car.lapStartTime += dtSec
     }
-    // Otherwise advance the sim and call stepLap once.
-    this.simTime = nextBoundary
-    const lapEvents = this.stepLap()
-    for (const e of lapEvents) events.push(e)
     return events
   }
 
