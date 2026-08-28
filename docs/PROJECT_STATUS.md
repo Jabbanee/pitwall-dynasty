@@ -302,8 +302,8 @@ Last updated: end of Standalone Windows PC Game conversion pass (2026-08-27).
 
 ## Test count
 
-172/172 passing (118 baseline + 27 driver-ecosystem + 8 desktop-platform
-+ 6 track-visual + 7 director + 6 era-cars + 6 director-priority).
+179/179 passing (118 baseline + 27 driver-ecosystem + 8 desktop-platform
++ 6 track-visual + 7 director + 6 era-cars + 6 director-priority + 7 motion).
 TypeScript: clean. Production build: green.
 Two-client multiplayer smoke test: PASS (shared championship ID,
 identical finishing order, identical standings, both clients
@@ -357,6 +357,53 @@ The test passed 10/10 in a deterministic 10x loop.
   full architecture write-up.
 - 12 visual QA screenshots committed to
   `docs/testing/screenshots/3d-world-p2/`.
+
+### P0 Live Car Movement (motion fix)
+- The P2 broadcast was technically moving the cars but
+  visually they appeared to teleport a full lap per frame: the
+  local `LiveRaceEngine.stepLap()` simulates one leader lap in
+  one call, and `localTick` called it in a tight loop until
+  `simTime` caught up. The fix is `LiveRaceEngine.frameStep(target)`
+  which advances the simTime in 1 s slices and only fires
+  `stepLap()` when the clock actually crosses a leader-lap
+  boundary. The renderer now uses `lapFractionOf(car)` which
+  interpolates `(simTime - car.lapStartTime) / car.lastLapTime`
+  smoothly between stepLap calls.
+- A DEV-only motion probe on `window.__pitwallMotion` records
+  the lead car's world transform every frame when
+  `localStorage.pitwall-dynasty.devProbe === '1'`. Verified
+  motion in the live packaged build: the probe recorded a
+  forward travel of 65 m in 977 ms, ~240 km/h, matching the
+  simulation pace.
+- Pit cars: when `car.pitThisLap` is set, the renderer snaps
+  the car to a deterministic spot on the pit-lane centreline
+  and visually stops the wheels.
+
+### 3D Visual Quality P3
+- Asphalt vertex-coloured: dark racing line down the centre
+  20 % of the track (rubbered), worn asphalt on each side,
+  base asphalt on the outer edges. Chequered start/finish
+  line, sector marker poles.
+- Pit complex: 10 team-coloured garages, low white pit wall
+  facing the track, glass-fronted timing tower with antenna
+  and support struts.
+- Sponsor boards along Armco and concrete barriers.
+- Cars: nose cone, multi-element era-correct front wing,
+  sidepods with bargeboards, engine cover with low scoop or
+  tall airbox, rear wing with endplates (1980s) or DRS flap
+  (modern), beam wing (era > 0.4), ground-effect floor (era
+  > 0.6), halo (era > 0.55), four wheels with hub + brake disc
+  + compound colour marker, suspension arms (2-4 per wheel),
+  diffuser (era > 0.5), T-cam (era > 0.7).
+- Driver helmet with visor (modern eras) and team-coloured
+  number plates on engine cover, both sidepods and nose.
+- Spray: 600-point cloud behind every car on a wet track.
+- Rain streaks: 800-point cloud that fills a 100 m box
+  around the camera and falls at ~30 m/s; opacity scales
+  with the weather condition.
+- 13 visual QA screenshots committed to
+  `docs/testing/screenshots/3d-visual-p3/`.
+- 5 motion-proof screenshots in `docs/testing/motion-proof/`.
 
 ## Visual identity (P1 completion)
 

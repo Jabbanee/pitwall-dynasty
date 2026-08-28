@@ -198,6 +198,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       // Spray particles — small Points cloud that grows in wet
       // conditions. Pooled for performance.
       ensureSpray()
+      ensureRain()
     }
   }
 
@@ -206,7 +207,15 @@ export function renderBroadcast3D(root: HTMLElement) {
   let sprayPoints: THREE.Points | null = null
   let sprayVel: Float32Array | null = null
   let sprayLife: Float32Array | null = null
-  const SPRAY_MAX = 220
+  // Rain streaks: a separate, much larger point cloud that fills
+  // the air in front of the camera. The cloud is regenerated as
+  // the camera moves so streaks feel endless.
+  let rainGeo: THREE.BufferGeometry | null = null
+  let rainPoints: THREE.Points | null = null
+  let rainVel: Float32Array | null = null
+  let rainLife: Float32Array | null = null
+  const SPRAY_MAX = 600
+  const RAIN_MAX = 800
   function ensureSpray() {
     if (sprayPoints) return
     sprayGeo = new THREE.BufferGeometry()
@@ -216,13 +225,30 @@ export function renderBroadcast3D(root: HTMLElement) {
     sprayGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     const sprite = new THREE.PointsMaterial({
       color: 0xdde2e8,
-      size: 0.6,
+      size: 0.55,
       transparent: true,
       opacity: 0,
       depthWrite: false,
     })
     sprayPoints = new THREE.Points(sprayGeo, sprite)
     scene.add(sprayPoints)
+  }
+  function ensureRain() {
+    if (rainPoints) return
+    rainGeo = new THREE.BufferGeometry()
+    const pos = new Float32Array(RAIN_MAX * 3)
+    rainVel = new Float32Array(RAIN_MAX * 3)
+    rainLife = new Float32Array(RAIN_MAX)
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const mat = new THREE.PointsMaterial({
+      color: 0xb8c4d2,
+      size: 0.18,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    })
+    rainPoints = new THREE.Points(rainGeo, mat)
+    scene.add(rainPoints)
   }
   function tickSpray(dt: number, wetness: number) {
     if (!sprayPoints || !sprayGeo || !sprayVel || !sprayLife) return
@@ -259,6 +285,48 @@ export function renderBroadcast3D(root: HTMLElement) {
     }
     posAttr.needsUpdate = true
   }
+
+  function tickRain(dt: number, condition: string) {
+    if (!rainPoints || !rainGeo || !rainVel || !rainLife) return
+    const isRain = condition === 'lightRain' || condition === 'heavyRain'
+    const intensity = condition === 'heavyRain' ? 0.85 : condition === 'lightRain' ? 0.55 : 0
+    ;(rainPoints.material as THREE.PointsMaterial).opacity = intensity
+    if (!isRain) {
+      // Drain rain particles over a second so the sky clears
+      // smoothly when weather changes.
+      for (let i = 0; i < RAIN_MAX; i++) rainLife[i] = Math.max(0, rainLife[i] - dt * 1.4)
+    }
+    const posAttr = rainGeo.attributes.position as THREE.BufferAttribute
+    const arr = posAttr.array as Float32Array
+    for (let i = 0; i < RAIN_MAX; i++) {
+      if (rainLife[i] > 0) {
+        rainLife[i] -= dt
+        arr[i * 3] += rainVel[i * 3] * dt
+        arr[i * 3 + 1] += rainVel[i * 3 + 1] * dt
+        arr[i * 3 + 2] += rainVel[i * 3 + 2] * dt
+        continue
+      }
+      if (!isRain) continue
+      // Respawn around the camera in a 100 m box so streaks
+      // appear to come from the sky in every direction.
+      const cx = camera.position.x
+      const cy = camera.position.y
+      const cz = camera.position.z
+      const sx = 80
+      const sy = 60
+      const sz = 80
+      arr[i * 3] = cx + (Math.random() - 0.5) * sx
+      arr[i * 3 + 1] = cy + 15 + Math.random() * sy
+      arr[i * 3 + 2] = cz + (Math.random() - 0.5) * sz
+      // Falling direction (mostly down, slight forward into the
+      // scene)
+      rainVel[i * 3] = (Math.random() - 0.5) * 2
+      rainVel[i * 3 + 1] = -28 - Math.random() * 6
+      rainVel[i * 3 + 2] = (Math.random() - 0.5) * 2
+      rainLife[i] = 1.0 + Math.random() * 0.6
+    }
+    posAttr.needsUpdate = true
+  }
   // Expose dispose to the cleanup observer.
   function disposeSpray() {
     if (sprayPoints) {
@@ -267,6 +335,13 @@ export function renderBroadcast3D(root: HTMLElement) {
       ;(sprayPoints.material as THREE.Material).dispose()
       sprayPoints = null
       sprayGeo = null
+    }
+    if (rainPoints) {
+      scene.remove(rainPoints)
+      rainPoints.geometry.dispose()
+      ;(rainPoints.material as THREE.Material).dispose()
+      rainPoints = null
+      rainGeo = null
     }
   }
 
@@ -361,6 +436,32 @@ export function renderBroadcast3D(root: HTMLElement) {
     for (const car of snapshot.cars) {
       const c3d = car3ds.get(car.driverId)
       if (!c3d) continue
+      // Pitting cars follow the pit lane centreline. We snap
+      // them to a fixed position near their team box. The
+      // presentation freezes the wheels and the body level for
+      // a moment of stillness.
+      if (car.pitThisLap || (car as { pitting?: boolean }).pitting) {
+        const c2 = (car as { teamId: string; carNumber: number })
+        const boxIdx = (Math.abs(hash01str(c2.teamId + ':' + c2.carNumber)) * track.pit.boxes) | 0
+        const u = (boxIdx + 0.5) / track.pit.boxes
+        const t = track.pit.entryFrac + (track.pit.exitFrac - track.pit.entryFrac) * u
+        track.positionAt(t, tmpPos)
+        // Offset laterally to the pit lane side
+        const tan = track.tangentAt(t, new THREE.Vector3())
+        const up = new THREE.Vector3(0, 1, 0)
+        const side = new THREE.Vector3().crossVectors(up, tan).normalize()
+        const dir = track.pit.side === 'left' ? -1 : 1
+        tmpPos.addScaledVector(side, dir * (track.trackWidth / 2 + 12))
+        tmpPos.y = track.theme.fog ? 0.6 : 0.6
+        c3d.visual.group.position.copy(tmpPos)
+        // Face along the pit lane (tangent)
+        c3d.visual.group.rotation.y = Math.atan2(tan.x, tan.z)
+        // Stopped visual: tiny speed
+        c3d.visual.update(0, 0, 0, 0)
+        c3d.visual.setCompound(compoundIndex(car.tyre))
+        c3d.visual.setRetired(!!car.retired)
+        continue
+      }
       // Use the local engine's lap-fraction helper for the
       // single-player case. It is the only place that has
       // continuous simTime between stepLap calls, so it produces a
@@ -401,6 +502,15 @@ export function renderBroadcast3D(root: HTMLElement) {
       c3d.visual.setCompound(compoundIndex(car.tyre))
       c3d.visual.setRetired(!!car.retired)
     }
+  }
+
+  function hash01str(s: string): number {
+    let h = 2166136261 >>> 0
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 16777619) >>> 0
+    }
+    return ((h >>> 8) & 0xffffff) / 0xffffff
   }
 
   // --- Camera + TV Director ---
@@ -1223,6 +1333,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       const condition = (race && (race as { condition?: string }).condition) ?? 'dry'
       applyWeatherVisuals(wetness, condition)
       tickSpray(dt, wetness)
+      tickRain(dt, condition)
     }
     maybeMotionProbe()
     renderer.render(scene, camera)

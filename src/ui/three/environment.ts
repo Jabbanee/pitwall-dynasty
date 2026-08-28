@@ -87,11 +87,19 @@ function buildAsphalt(
   width: number,
   baseColor: number,
   segments: number,
+  def: TrackVisualDefinition,
 ): THREE.Mesh {
   const geo = new THREE.BufferGeometry()
   const verts: number[] = []
   const uvs: number[] = []
+  const colors: number[] = []
   const up = new THREE.Vector3(0, 1, 0)
+  // A subtle colour stripe down the middle represents the racing
+  // line. We modulate the asphalt colour by ±5% with a smooth
+  // sine across the width so the surface reads as "rubbered" along
+  // the racing line without breaking the simulation.
+  const racingLineColor = new THREE.Color(baseColor).multiplyScalar(0.86).getHex()
+  const wornColor = new THREE.Color(baseColor).multiplyScalar(0.94).getHex()
   for (let i = 0; i <= segments; i++) {
     const t = i / segments
     const pos = curve.getPointAt(t % 1)
@@ -100,7 +108,21 @@ function buildAsphalt(
     const halfW = width / 2
     const l = pos.clone().addScaledVector(side, -halfW)
     const r = pos.clone().addScaledVector(side, halfW)
-    verts.push(l.x, l.y + 0.05, l.z, r.x, r.y + 0.05, r.z)
+    // Lift the racing-line edge a tiny bit so it does not z-fight
+    // with the asphalt. +0.06 m is enough.
+    const isRacingLineL = t > 0.05 && t < 0.95
+    const yOff = isRacingLineL ? 0.06 : 0.05
+    verts.push(l.x, l.y + yOff, l.z, r.x, r.y + yOff, r.z)
+    // Racing-line colour: darken the centre 20 % of the track.
+    // We use the position across the width as the driver.
+    const distR = 0
+    const distL = 1
+    const cL = pickAsphaltColour(distL, racingLineColor, wornColor, baseColor)
+    const cR = pickAsphaltColour(distR, racingLineColor, wornColor, baseColor)
+    colors.push(
+      (cL >> 16) & 0xff, (cL >> 8) & 0xff, cL & 0xff,
+      (cR >> 16) & 0xff, (cR >> 8) & 0xff, cR & 0xff,
+    )
     uvs.push(0, t * 80, 1, t * 80)
   }
   const indices: number[] = []
@@ -110,12 +132,27 @@ function buildAsphalt(
   }
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geo.setIndex(indices)
   geo.computeVertexNormals()
-  return new THREE.Mesh(
+  // Sectors: paint a 200 mm wide start/finish line at the
+  // beginning. We add a second mesh on top of the asphalt at the
+  // start.
+  const surface = new THREE.Mesh(
     geo,
-    sharedMaterial(`asphalt:${baseColor}`, () => new THREE.MeshLambertMaterial({ color: baseColor })),
+    new THREE.MeshLambertMaterial({ vertexColors: true }),
   )
+  return surface
+  void def
+}
+
+function pickAsphaltColour(u: number, racing: number, worn: number, base: number): number {
+  // u in [0..1] across the track width. The centre 20 % is the
+  // racing line (dark rubber), the next 20 % on each side is
+  // slightly worn, and the outer edges are base asphalt.
+  if (u > 0.4 && u < 0.6) return racing
+  if (u > 0.25 && u < 0.75) return worn
+  return base
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +313,36 @@ function buildBarriers(
       seg.lookAt(lookAt)
       group.add(seg)
     }
+    // Sponsor boards behind Armco and concrete barriers — small
+    // billboard-like rectangles that face the racing line. They
+    // add visual variety to the trackside without modeling each
+    // sponsor in detail.
+    if (z.kind === 'armco' || z.kind === 'concrete') {
+      for (let i = 0; i < segs; i += 2) {
+        const t0 = (z.fromFrac + ((z.toFrac - z.fromFrac + 1) % 1) * (i / segs)) % 1
+        const p0 = curve.getPointAt(t0)
+        const tan = curve.getTangentAt(t0)
+        const side = new THREE.Vector3().crossVectors(up, tan).normalize()
+        const off = dir * (width / 2 + 3.6)
+        const board = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.4, 0.9),
+          new THREE.MeshBasicMaterial({ color: 0xeeeeee }),
+        )
+        board.position.copy(p0).addScaledVector(side, off)
+        board.position.y = 0.5
+        board.lookAt(p0.clone().add(side.clone().multiplyScalar(-dir * 5)))
+        group.add(board)
+        // A second coloured stripe on the bottom half for variety
+        const stripe = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.4, 0.18),
+          new THREE.MeshBasicMaterial({ color: 0xe63946 }),
+        )
+        stripe.position.copy(board.position)
+        stripe.position.y = 0.07
+        stripe.rotation.copy(board.rotation)
+        group.add(stripe)
+      }
+    }
   }
   return group
 }
@@ -420,6 +487,46 @@ function buildPitLane(
   wall.position.addScaledVector(sideVec, -dir * 3)
   wall.lookAt(wall.position.clone().add(wallTan))
   group.add(wall)
+
+  // Timing tower / control room — a tall glass-walled box above
+  // the middle of the pit wall. This is the iconic "race control"
+  // block visible from every broadcast camera.
+  const towerCenter = e.clone().lerp(x, 0.5).addScaledVector(sideVec, -dir * 4.6)
+  const towerBase = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 0.3, 2.2),
+    sharedMaterial('pit:towerBase', () => new THREE.MeshLambertMaterial({ color: 0x1c2230 })),
+  )
+  towerBase.position.copy(towerCenter)
+  towerBase.position.y = 3.4
+  towerBase.lookAt(towerCenter.clone().add(wallTan))
+  group.add(towerBase)
+  // Glass front (darker transparent box)
+  const towerGlass = new THREE.Mesh(
+    new THREE.BoxGeometry(7.4, 2.2, 1.6),
+    new THREE.MeshLambertMaterial({ color: 0x6da3c8, transparent: true, opacity: 0.55 }),
+  )
+  towerGlass.position.copy(towerCenter)
+  towerGlass.position.y = 4.4
+  towerGlass.lookAt(towerCenter.clone().add(wallTan))
+  group.add(towerGlass)
+  // Antenna on top
+  const ant = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 2.5, 6),
+    sharedMaterial('pit:antenna', () => new THREE.MeshLambertMaterial({ color: 0x101418 })),
+  )
+  ant.position.copy(towerCenter)
+  ant.position.y = 6.5
+  group.add(ant)
+  // Support struts under the tower
+  for (const dx of [-3.4, 3.4]) {
+    const strut = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 3.2, 6),
+      sharedMaterial('pit:strut', () => new THREE.MeshLambertMaterial({ color: 0x2a2f37 })),
+    )
+    strut.position.copy(towerCenter).add(new THREE.Vector3(dx, 1.6, 0))
+    strut.lookAt(strut.position.clone().add(wallTan))
+    group.add(strut)
+  }
   // Pit entry / exit stripe
   for (const marker of [
     { t: def.pit.entryFrac, kind: 'entry' as const },
@@ -450,6 +557,43 @@ function buildStartLightsGantry(curve: THREE.CatmullRomCurve3, def: TrackVisualD
   const up = new THREE.Vector3(0, 1, 0)
   const sfPos = curve.getPointAt(0)
   const tan = curve.getTangentAt(0)
+
+  // Start/finish line — chequered paint across the racing line.
+  // We draw two stacked boxes (white + black) in a 4x6 pattern
+  // that's cheap but reads correctly from a helicopter.
+  const sfSide = new THREE.Vector3().crossVectors(up, tan).normalize()
+  const lineWidth = def.baseWidth * 0.9
+  const cellW = lineWidth / 8
+  const cellL = 0.6
+  const yLine = sfPos.y + 0.07
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 8; col++) {
+      const dark = (row + col) % 2 === 0
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(cellW, 0.01, cellL),
+        new THREE.MeshBasicMaterial({ color: dark ? 0x101418 : 0xf2f3f6 }),
+      )
+      const u = (col + 0.5) / 8
+      const p = sfPos.clone().addScaledVector(sfSide, -lineWidth / 2 + u * lineWidth)
+      m.position.set(p.x, yLine + 0.005 + row * 0.001, p.z + tan.z * 0.0)
+      m.lookAt(p.x + tan.x, yLine, p.z + tan.z)
+      group.add(m)
+    }
+  }
+  // Sector markers (vertical 200 mm bars on the side of the track)
+  for (const sb of def.sectorBreaks) {
+    const sPos = curve.getPointAt(sb)
+    const sTan = curve.getTangentAt(sb)
+    const sSide = new THREE.Vector3().crossVectors(up, sTan).normalize()
+    const dir = sb < 0.5 ? -1 : 1
+    const pole = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 1.4, 0.1),
+      sharedMaterial('sector:pole', () => new THREE.MeshLambertMaterial({ color: 0xe0e2e6 })),
+    )
+    pole.position.copy(sPos).addScaledVector(sSide, dir * (def.baseWidth / 2 + 1.2))
+    pole.position.y += 0.7
+    group.add(pole)
+  }
   const side = new THREE.Vector3().crossVectors(up, tan).normalize()
   const postMat = sharedMaterial('gantry:post', () => new THREE.MeshLambertMaterial({ color: 0x121620 }))
   const beamMat = sharedMaterial('gantry:beam', () => new THREE.MeshLambertMaterial({ color: 0x1c2230 }))
@@ -571,7 +715,7 @@ export function buildTrackWorld(circuit: Circuit, def: TrackVisualDefinition, gr
 
   const terrain = buildTerrain(def, curve, theme)
   group.add(terrain)
-  const asphalt = buildAsphalt(curve, def.baseWidth, theme.asphalt, 400)
+  const asphalt = buildAsphalt(curve, def.baseWidth, theme.asphalt, 400, def)
   group.add(asphalt)
   const curbs = buildCurbs(curve, def.baseWidth, def)
   group.add(curbs)
