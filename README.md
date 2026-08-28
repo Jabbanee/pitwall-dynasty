@@ -282,11 +282,14 @@ Local Career includes a full driver pipeline:
 See `docs/DRIVER_ECOSYSTEM.md` for the full design and
 `docs/PROJECT_STATUS.md` for the implementation status.
 
-**153/153** vitest tests pass. TypeScript is clean. Production
+**172/172** vitest tests pass. TypeScript is clean. Production
 build is green. The two-client multiplayer smoke test passes.
 Pitwall Dynasty is a real standalone Windows PC game — see
 [docs/DESKTOP_ARCHITECTURE.md](docs/DESKTOP_ARCHITECTURE.md) for the
-Electron architecture. The packaged installer lives at
+Electron architecture and
+[docs/3D_WORLD.md](docs/3D_WORLD.md) +
+[docs/BROADCAST_DIRECTOR.md](docs/BROADCAST_DIRECTOR.md) for the
+3D world + TV Director. The packaged installer lives at
 `dist-electron\Pitwall Dynasty Setup 0.1.0.exe`.
 
 ## Development
@@ -295,7 +298,7 @@ Electron architecture. The packaged installer lives at
 npm install             # install dependencies
 npm run dev             # vite dev server + browser UI
 npm run server          # authoritative multiplayer server (Node)
-npm test                # 153/153 vitest tests
+npm test                # 172/172 vitest tests
 npm run build           # tsc + vite production build
 npm run desktop:dev     # vite + electron in dev mode
 npm run desktop:package # produce the Windows installer

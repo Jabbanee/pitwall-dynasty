@@ -224,6 +224,47 @@ the browser at the same UI surface so the screens that ship in the
 installer are pixel-equivalent to what Playwright MCP verified in
 the browser pass.
 
+# 3D World P2 Pass
+
+This pass replaces the flat procedural test track with a proper
+track presentation model. The 3D world now combines:
+
+- fictional world-class single-seater racing
+- believable permanent circuits (deterministic per circuit id)
+- a local TV Director that picks helicopters, trackside, onboard,
+  battle and pit-lane cameras based on a tiered event priority
+- era-aware car geometry (1980s → 2022+ with halo, floor, age-correct
+  tyre proportions)
+- team liveries with nose / sidepod / engine-cover stripes
+- compound-readable tyre markers (red / yellow / white / green / blue)
+- an environment theme per circuit (forest / mountain / coastal /
+  desert / urban-park / modern-purpose-built)
+- elevation-aware track ribbon, terrain mesh, curbs, runoff,
+  barriers, grandstands, pit complex, starting lights gantry
+- wet-track visuals: sky / fog / light darken with track wetness
+  and a small `Points` spray cloud behind every car
+
+Visual QA was performed against the renderer in headless Chromium
+at the same UI surface that the packaged build ships with, because
+the CI is a Windows Server Core container that cannot drive a
+GUI. The packaged build was also launched standalone and confirmed
+to run without a Vite dev server.
+
+| # | File | Verifies |
+| - | ---- | -------- |
+| 01 | `3d-world-p2/01-forest-circuit-wide.png` | full-circuit helicopter view of the 3D world |
+| 02 | `3d-world-p2/02-forest-circuit-trackside.png` | trackside low camera |
+| 04 | `3d-world-p2/04-third-circuit-environment.png` | round-3 circuit helicopter view |
+| 10 | `3d-world-p2/10-3d-race.png` | live race at 2x speed |
+| 19 | `3d-world-p2/19-helicopter-camera.png` | LEADER camera mode |
+| 20 | `3d-world-p2/20-trackside-camera.png` | TRACKSIDE camera mode |
+| 21 | `3d-world-p2/21-battle-camera.png` | BATTLE camera after WATCH BATTLE |
+| 22 | `3d-world-p2/22-onboard-camera.png` | T-CAM onboard camera |
+| 23 | `3d-world-p2/23-pit-lane-camera.png` | PIT LANE camera |
+| 27 | `3d-world-p2/27-chequered-flag.png` | chequered-flag presentation |
+| 29 | `3d-world-p2/29-tv-director.png` | TV Director auto-pilot |
+| 30 | `3d-world-p2/30-final-standalone-race.png` | final standalone 3D race |
+
 | Build artifact | Path | Notes |
 | --- | --- | --- |
 | Unpacked executable | `dist-electron\win-unpacked\Pitwall Dynasty.exe` (186 MB) | Standalone Chromium + bundled renderer + preload + main process. Launches with no external dependencies. |

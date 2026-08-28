@@ -27,7 +27,10 @@ material is explicitly excluded.
 | Regulation banner | CSS gold-accent callout with readiness bar | CSS | Original |
 | Sponsor wordmark | colour block + short name from id | CSS | Original |
 | Driver helmet CSS | `var(--helmet-base)` / `var(--helmet-stripe)` / `var(--helmet-text)` parameterised | CSS | Original |
-| Era-distinct 3D cars | `src/ui/three/car3d.ts` — width/height/halo vary with eraFactor | WebGL | Original, procedural |
+| Era-distinct 3D cars | `src/ui/three/car3d.ts` — width/height/halo/floor/tyre/wing vary with eraFactor (0..1) | WebGL | Original, procedural |
+| Track visual world | `src/ui/three/environment.ts` — terrain, asphalt, curbs, runoff, barriers, grandstands, pit complex, starting lights gantry, vegetation | WebGL | Original, procedural |
+| Environment themes | `src/ui/three/track-visual.ts` — six palettes (forest / mountain / coastal / desert / urban-park / modern-purpose-built) | WebGL / material | Original |
+| TV Director | `src/ui/three/cameras.ts` — local renderer-only camera decision with CRITICAL / HIGH / NORMAL priority and 8 camera modes | n/a (logic) | Original |
 | Icon set | `src/ui/icons.ts` | inline SVG | Original |
 | Application icon (Windows .ico) | `scripts/make-icon-128.ps1` (procedural PD shield + checkered flag) → `build/icon.ico` (16, 24, 32, 48, 64, 128 px) and `build/icon.png` (256 px) | raster | Original, procedural |
 | Application icon source SVG | `build/icon.svg` (reference only) | SVG | Original, not bundled at runtime |

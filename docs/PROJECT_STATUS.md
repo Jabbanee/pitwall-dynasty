@@ -213,7 +213,7 @@ Last updated: end of Standalone Windows PC Game conversion pass (2026-08-27).
   Chromium in the installer.
 - `tests/desktop-platform.test.ts` — 8 tests covering the
   repository abstraction, save schema round-tripping, schema
-  migration, and atomic write contract. 153/153 vitest tests pass.
+  migration, and atomic write contract. 172/172 vitest tests pass.
 
 ### Driver Ecosystem (local Career)
 - Three fictional feeder championships: Regional Formula
@@ -302,12 +302,61 @@ Last updated: end of Standalone Windows PC Game conversion pass (2026-08-27).
 
 ## Test count
 
-153/153 passing (118 baseline + 27 driver-ecosystem + 8 desktop-platform).
+172/172 passing (118 baseline + 27 driver-ecosystem + 8 desktop-platform
++ 6 track-visual + 7 director + 6 era-cars + 6 director-priority).
 TypeScript: clean. Production build: green.
 Two-client multiplayer smoke test: PASS (shared championship ID,
 identical finishing order, identical standings, both clients
 advance to R2). Packaged Windows build: `Pitwall Dynasty Setup
 0.1.0.exe` produced via `npm run desktop:package`.
+
+The previously flaky `multiplayer-snapshot.test.ts > two-driver
+pacing` test is now architecturally fixed: `MultiplayerLobby`
+accepts an optional `{ seed }` and the test pins `seed: 0x5eed`.
+The test passed 10/10 in a deterministic 10x loop.
+
+### 3D World (broadcast P2)
+- `src/ui/three/track-visual.ts` — TrackVisualDefinition with
+  centreline, elevation, sectors, curbs, runoff, barriers,
+  grandstands, pit lane, camera points, environment theme.
+  Six themes: forest / mountain / coastal / desert / urban-park /
+  modern-purpose-built. Deterministic per circuit id.
+- `src/ui/three/environment.ts` — `buildTrackWorld` builds the
+  full 3D world: terrain mesh, asphalt ribbon, curbs, runoff,
+  barriers, grandstands with crowd blocks, pit complex with
+  garages + pit wall + entry/exit stripes, starting lights gantry,
+  instanced vegetation.
+- `src/ui/three/car3d.ts` — era-aware car geometry. 1980s slim
+  tall-winged, 2022+ wide haloed ground-effect. Multi-element
+  front wing, halo from era > 0.55, ground-effect floor from
+  era > 0.6. Body pitch / roll under acceleration / cornering.
+  Wheel spin from ground speed. Compound-readable tyre markers
+  (red soft / yellow medium / white hard / green int / blue wet).
+  Team livery stripes on nose, sidepod, engine cover. Driver
+  helmet, racing number on engine cover + sidepods. Retirement
+  hides the car.
+- `src/ui/three/cameras.ts` — `TvDirector` is a local
+  renderer-only camera decision engine. Priority: CRITICAL >
+  HIGH > NORMAL. Stale events (> 8 s) drop. Manual override
+  persists. 8 modes: director / helicopter / trackside / onboard /
+  leader / battle / pit-lane / follow.
+- Weather visuals: `applyWeatherVisuals` lerps sky / fog /
+  light intensity with `trackWetness`. A 220-point `Points` cloud
+  emits spray behind every car on a wet track.
+- Graphics presets (LOW / MEDIUM / HIGH / ULTRA) wire real
+  scene complexity: tree density 30 % / 60 % / 100 % / 100 %,
+  crowd blocks 0 / 12 / 22 / 32.
+- Three.js cleanup: `MutationObserver` on broadcast unmount
+  disposes car visuals, the spray cloud, the world group, the
+  renderer, and the WebGL context.
+- Race event presentation: `LIGHTS OUT` on race start,
+  `FINAL LAP` when the leader enters the last lap,
+  `CHEQUERED FLAG` when the race completes. Banners share the
+  `.b3d-event-banner` element with a per-event accent.
+- See `docs/3D_WORLD.md` and `docs/BROADCAST_DIRECTOR.md` for the
+  full architecture write-up.
+- 12 visual QA screenshots committed to
+  `docs/testing/screenshots/3d-world-p2/`.
 
 ## Visual identity (P1 completion)
 
