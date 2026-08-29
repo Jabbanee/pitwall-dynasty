@@ -207,7 +207,7 @@ export interface TrackVisualDefinition {
   runoff: RunoffZone[]
   /** Barrier zones (presentation only). */
   barriers: BarrierZone[]
-  /** Grandstands (presentation only). */
+  /** Grandstand zones (presentation only). */
   grandstands: GrandstandZone[]
   /** Camera points. */
   cameras: CameraPoint[]
@@ -219,6 +219,49 @@ export interface TrackVisualDefinition {
   elevationAmplitude: number
   /** Optional terrain extent (m radius around the centre). */
   terrainRadius: number
+  /**
+   * Explicit authored signature object for this circuit. Each
+   * environment theme gets a distinct archetype so the player can
+   * recognise a circuit by its signature feature alone.
+   */
+  signature: SignatureSpec
+  /** Explicit horizon style: which distant scenery layers to render. */
+  horizon: HorizonSpec
+}
+
+export type SignatureArchetype =
+  | 'forest-timber-bridge'
+  | 'forest-hospitality-lodge'
+  | 'mountain-rock-bridge'
+  | 'mountain-viaduct'
+  | 'coastal-marina'
+  | 'coastal-lighthouse'
+  | 'desert-shade-canopy'
+  | 'desert-tower'
+  | 'urban-bridge'
+  | 'urban-pavilion'
+  | 'modern-control-tower'
+  | 'modern-grandstand'
+
+export type HorizonArchetype =
+  | 'wooded-hills'
+  | 'mountain-ridge'
+  | 'sea-shore'
+  | 'dunes'
+  | 'city-skyline'
+  | 'venue-skyline'
+
+export interface SignatureSpec {
+  archetype: SignatureArchetype
+  /** Approximate world position (will be transformed to the nearest trackside). */
+  positionFrac: number
+  side: 'left' | 'right'
+  scale: number
+}
+
+export interface HorizonSpec {
+  archetype: HorizonArchetype
+  intensity: number // 0..1
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +417,39 @@ function camerasForCircuit(circuitId: string, baseWidth: number, pitSide: 'left'
   return cameras
 }
 
+function pickSignature(theme: EnvironmentThemeId, circuit: Circuit): SignatureSpec {
+  // Each environment theme gets a distinct archetype. The exact
+  // position and side are derived from the circuit id so the same
+  // circuit always shows the same signature feature.
+  const h = hash01(circuit.id + ':sig')
+  const baseFrac = 0.4 + h * 0.2 // 0.4..0.6, between the back straight and the last sector
+  const side: 'left' | 'right' = hash01(circuit.id + ':sigSide') > 0.5 ? 'right' : 'left'
+  const archetypeByTheme: Record<EnvironmentThemeId, SignatureArchetype[]> = {
+    'forest': ['forest-timber-bridge', 'forest-hospitality-lodge'],
+    'mountain': ['mountain-rock-bridge', 'mountain-viaduct'],
+    'coastal': ['coastal-marina', 'coastal-lighthouse'],
+    'desert': ['desert-shade-canopy', 'desert-tower'],
+    'urban-park': ['urban-bridge', 'urban-pavilion'],
+    'modern-purpose-built': ['modern-control-tower', 'modern-grandstand'],
+  }
+  const list = archetypeByTheme[theme] ?? ['modern-grandstand']
+  const archetype = list[Math.floor(hash01(circuit.id + ':sigPick') * list.length) % list.length]
+  const scale = 1.0 + hash01(circuit.id + ':sigScale') * 0.4
+  return { archetype, positionFrac: baseFrac, side, scale }
+}
+
+function pickHorizon(theme: EnvironmentThemeId): HorizonSpec {
+  const byTheme: Record<EnvironmentThemeId, HorizonArchetype> = {
+    'forest': 'wooded-hills',
+    'mountain': 'mountain-ridge',
+    'coastal': 'sea-shore',
+    'desert': 'dunes',
+    'urban-park': 'city-skyline',
+    'modern-purpose-built': 'venue-skyline',
+  }
+  return { archetype: byTheme[theme], intensity: 0.85 }
+}
+
 function pickTheme(circuit: Circuit): EnvironmentThemeId {
   // Map circuit characteristics to a theme so each circuit has a
   // consistent look across the whole project.
@@ -399,6 +475,8 @@ export function getTrackVisualDefinition(circuit: Circuit): TrackVisualDefinitio
   const baseWidth = 11 + hash01(circuit.id + ':w') * 4 // 11..15m
   const elevationAmplitude = 2.5 + hash01(circuit.id + ':elev') * 9 // 2.5..11.5m
   const pitSide: 'left' | 'right' = hash01(circuit.id + ':pitS') > 0.5 ? 'right' : 'left'
+  const signature = pickSignature(theme, circuit)
+  const horizon = pickHorizon(theme)
   const def: TrackVisualDefinition = {
     circuitId: circuit.id,
     theme,
@@ -426,6 +504,8 @@ export function getTrackVisualDefinition(circuit: Circuit): TrackVisualDefinitio
     sectorBreaks: [0.33, 0.66],
     elevationAmplitude,
     terrainRadius: 360,
+    signature,
+    horizon,
   }
   VISUAL_DEFINITION_CACHE.set(circuit.id, def)
   return clone(def)

@@ -676,6 +676,242 @@ function sumTo(start: number, count: number, step: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Per-circuit signature feature + horizon layers (P5)
+// ---------------------------------------------------------------------------
+
+function buildSignatureFeature(
+  curve: THREE.CatmullRomCurve3,
+  def: TrackVisualDefinition,
+  theme: EnvironmentTheme,
+): THREE.Group {
+  const group = new THREE.Group()
+  const up = new THREE.Vector3(0, 1, 0)
+  const sig = def.signature
+  const t = sig.positionFrac
+  const pos = curve.getPointAt(t)
+  const tan = curve.getTangentAt(t)
+  const side = new THREE.Vector3().crossVectors(up, tan).normalize()
+  const dir = sig.side === 'left' ? -1 : 1
+  const off = (def.baseWidth / 2 + 14) * dir * sig.scale
+  const cx = pos.x + side.x * off
+  const cz = pos.z + side.z * off
+  const angle = Math.atan2(tan.x, tan.z)
+  const baseY = pos.y
+  switch (sig.archetype) {
+    case 'forest-timber-bridge': {
+      // Trestle bridge: two side beams + cross planks.
+      const beamMat = sharedMaterial('sig:timber', () => new THREE.MeshLambertMaterial({ color: 0x6b4a2e }))
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(8, 0.6, 1.4), beamMat)
+      beam.position.set(cx, baseY + 3, cz)
+      beam.lookAt(cx + tan.x, baseY + 3, cz + tan.z)
+      group.add(beam)
+      for (let i = -2; i <= 2; i++) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3, 0.4), beamMat)
+        leg.position.set(cx + tan.x * i * 1.4, baseY + 1.5, cz + tan.z * i * 1.4)
+        group.add(leg)
+      }
+      break
+    }
+    case 'forest-hospitality-lodge': {
+      // Pitched-roof lodge.
+      const wallMat = sharedMaterial('sig:lodge:wall', () => new THREE.MeshLambertMaterial({ color: 0x4b3a2a }))
+      const roofMat = sharedMaterial('sig:lodge:roof', () => new THREE.MeshLambertMaterial({ color: 0x6a3a26 }))
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 4), wallMat)
+      wall.position.set(cx, baseY + 1.5, cz)
+      wall.lookAt(cx + tan.x, baseY + 1.5, cz + tan.z)
+      group.add(wall)
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(4, 1.6, 4), roofMat)
+      roof.position.set(cx, baseY + 3.8, cz)
+      roof.rotation.y = angle + Math.PI / 4
+      group.add(roof)
+      break
+    }
+    case 'mountain-rock-bridge': {
+      // Stone arch bridge silhouette.
+      const archMat = sharedMaterial('sig:stone', () => new THREE.MeshLambertMaterial({ color: 0x807870 }))
+      const arch = new THREE.Mesh(new THREE.BoxGeometry(7, 0.5, 1.6), archMat)
+      arch.position.set(cx, baseY + 4, cz)
+      arch.lookAt(cx + tan.x, baseY + 4, cz + tan.z)
+      group.add(arch)
+      for (let i = -2; i <= 2; i++) {
+        const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 0.4), archMat)
+        pylon.position.set(cx + tan.x * i * 1.4, baseY + 2, cz + tan.z * i * 1.4)
+        group.add(pylon)
+      }
+      break
+    }
+    case 'mountain-viaduct': {
+      // Tall multi-pillar viaduct silhouette.
+      const pier = sharedMaterial('sig:viaduct', () => new THREE.MeshLambertMaterial({ color: 0x6a5a4a }))
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 1.2), pier)
+      deck.position.set(cx, baseY + 5.5, cz)
+      deck.lookAt(cx + tan.x, baseY + 5.5, cz + tan.z)
+      group.add(deck)
+      for (let i = -3; i <= 3; i++) {
+        const col = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5.2, 0.3), pier)
+        col.position.set(cx + tan.x * i * 1.4, baseY + 2.6, cz + tan.z * i * 1.4)
+        group.add(col)
+      }
+      break
+    }
+    case 'coastal-marina': {
+      // Two finger pontoons + a tall mast.
+      const dock = sharedMaterial('sig:dock', () => new THREE.MeshLambertMaterial({ color: 0x6a5a44 }))
+      for (let i = 0; i < 3; i++) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 3 + i * 0.5), dock)
+        arm.position.set(cx + i * 0.7, baseY + 0.6, cz + i * 0.5)
+        group.add(arm)
+      }
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5, 6), sharedMaterial('sig:mast', () => new THREE.MeshLambertMaterial({ color: 0x101418 })))
+      mast.position.set(cx, baseY + 2.5, cz)
+      group.add(mast)
+      break
+    }
+    case 'coastal-lighthouse': {
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 6, 12), sharedMaterial('sig:lighthouse', () => new THREE.MeshLambertMaterial({ color: 0xeeeeee })))
+      tower.position.set(cx, baseY + 3, cz)
+      group.add(tower)
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 8), sharedMaterial('sig:lamp', () => new THREE.MeshBasicMaterial({ color: 0xffe48c })))
+      lamp.position.set(cx, baseY + 6.3, cz)
+      group.add(lamp)
+      break
+    }
+    case 'desert-shade-canopy': {
+      // Large tensioned fabric canopy.
+      const mem = sharedMaterial('sig:canopy', () => new THREE.MeshLambertMaterial({ color: 0xeee2c0 }))
+      const top = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), mem)
+      top.position.set(cx, baseY + 5, cz)
+      top.rotation.x = -Math.PI / 2.5
+      group.add(top)
+      for (let i = -1; i <= 1; i += 2) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 5, 6), sharedMaterial('sig:canopy:pole', () => new THREE.MeshLambertMaterial({ color: 0x101418 })))
+        pole.position.set(cx + i * 3.5, baseY + 2.5, cz)
+        group.add(pole)
+      }
+      break
+    }
+    case 'desert-tower': {
+      // Tall observation tower with a viewing deck.
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 7, 8), sharedMaterial('sig:tower', () => new THREE.MeshLambertMaterial({ color: 0xc6a070 })))
+      shaft.position.set(cx, baseY + 3.5, cz)
+      group.add(shaft)
+      const deck = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.2, 16), sharedMaterial('sig:deck', () => new THREE.MeshLambertMaterial({ color: 0xb09060 })))
+      deck.position.set(cx, baseY + 6.5, cz)
+      group.add(deck)
+      const roof2 = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.2, 8), sharedMaterial('sig:tower:roof', () => new THREE.MeshLambertMaterial({ color: 0x704a2a })))
+      roof2.position.set(cx, baseY + 7.5, cz)
+      group.add(roof2)
+      break
+    }
+    case 'urban-bridge': {
+      // Cable-stayed bridge silhouette: two pylons + deck.
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(9, 0.4, 1.4), sharedMaterial('sig:bridge', () => new THREE.MeshLambertMaterial({ color: 0x6a6a6a })))
+      deck.position.set(cx, baseY + 3, cz)
+      deck.lookAt(cx + tan.x, baseY + 3, cz + tan.z)
+      group.add(deck)
+      for (const dx of [-3.5, 3.5]) {
+        const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.4, 6, 0.4), sharedMaterial('sig:bridge:pylon', () => new THREE.MeshLambertMaterial({ color: 0xc0c0c0 })))
+        pylon.position.set(cx + side.x * dx, baseY + 3, cz + side.z * dx)
+        group.add(pylon)
+      }
+      break
+    }
+    case 'urban-pavilion': {
+      // Open-sided glass pavilion.
+      const frame = sharedMaterial('sig:pavilion', () => new THREE.MeshLambertMaterial({ color: 0x404a55 }))
+      for (let i = 0; i < 4; i++) {
+        const col = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 0.2), frame)
+        col.position.set(
+          cx + Math.cos((i * Math.PI) / 2) * 2.4,
+          baseY + 1.6,
+          cz + Math.sin((i * Math.PI) / 2) * 2.4,
+        )
+        group.add(col)
+      }
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.2, 5.5), sharedMaterial('sig:pavilion:roof', () => new THREE.MeshLambertMaterial({ color: 0x202832 })))
+      roof.position.set(cx, baseY + 3.4, cz)
+      group.add(roof)
+      break
+    }
+    case 'modern-control-tower': {
+      // Tall slim glass control tower.
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(1.6, 8, 1.6), sharedMaterial('sig:ct', () => new THREE.MeshLambertMaterial({ color: 0x6da3c8 })))
+      tower.position.set(cx, baseY + 4, cz)
+      group.add(tower)
+      const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 2.4), sharedMaterial('sig:ct:top', () => new THREE.MeshLambertMaterial({ color: 0x101418 })))
+      top.position.set(cx, baseY + 8.2, cz)
+      group.add(top)
+      const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), sharedMaterial('sig:ct:antenna', () => new THREE.MeshLambertMaterial({ color: 0x101418 })))
+      ant.position.set(cx, baseY + 9.1, cz)
+      group.add(ant)
+      break
+    }
+    case 'modern-grandstand': {
+      // Iconic angular main grandstand silhouette.
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 4), sharedMaterial('sig:mg', () => new THREE.MeshLambertMaterial({ color: 0x4a5260 })))
+      stand.position.set(cx, baseY + 3, cz)
+      stand.lookAt(cx + tan.x, baseY + 3, cz + tan.z)
+      group.add(stand)
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(13, 0.2, 4.6), sharedMaterial('sig:mg:roof', () => new THREE.MeshLambertMaterial({ color: 0x101418 })))
+      roof.position.set(cx, baseY + 6.1, cz)
+      roof.lookAt(cx + tan.x, baseY + 6.1, cz + tan.z)
+      group.add(roof)
+      break
+    }
+  }
+  void angle
+  return group
+  void theme
+}
+
+function buildHorizonLayers(
+  curve: THREE.CatmullRomCurve3,
+  def: TrackVisualDefinition,
+  theme: EnvironmentTheme,
+): THREE.Group {
+  const group = new THREE.Group()
+  // 12 low-detail distant terrain blocks arranged in a ring
+  // around the centreline at radius ~2x track radius. Colour and
+  // height depend on the theme so each environment gets a
+  // distinct horizon silhouette.
+  const radius = def.terrainRadius * 1.6
+  const heightByTheme: Record<string, number> = {
+    'forest': 4,
+    'mountain': 12,
+    'coastal': 2,
+    'desert': 5,
+    'urban-park': 8,
+    'modern-purpose-built': 9,
+  }
+  const colorByTheme: Record<string, number> = {
+    'forest': 0x1a2a1f,
+    'mountain': 0x4a4538,
+    'coastal': 0x6a8a9a,
+    'desert': 0xa08050,
+    'urban-park': 0x2a2f3a,
+    'modern-purpose-built': 0x3a4250,
+  }
+  const blockColor = (colorByTheme as Record<string, number>)[theme as unknown as string] ?? 0x303030
+  const blockH = (heightByTheme as Record<string, number>)[theme as unknown as string] ?? 4
+  const intensity = def.horizon?.intensity ?? 0.85
+  const n = Math.max(8, Math.round(12 * intensity))
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2
+    const r = radius * (0.85 + ((i * 17) % 7) * 0.04)
+    const h = blockH * (0.7 + ((i * 11) % 5) * 0.12)
+    const w = 16 + ((i * 7) % 11) * 3
+    const d = 10 + ((i * 5) % 9) * 3
+    const block = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshLambertMaterial({ color: blockColor, fog: true }),
+    )
+    block.position.set(Math.cos(ang) * r, h / 2 - 2, Math.sin(ang) * r)
+    group.add(block)
+  }
+  return group
+  void curve
+}
+
 // Pit lane and pit building
 // ---------------------------------------------------------------------------
 
@@ -1012,6 +1248,15 @@ export function buildTrackWorld(circuit: Circuit, def: TrackVisualDefinition, gr
   group.add(gantry)
   const vegetation = buildVegetation(curve, def, theme, graphicsLevel)
   group.add(vegetation)
+  // Per-circuit signature feature — one explicit object per
+  // archetype so the player can recognise each environment by a
+  // distinct landmark (timber bridge, rock-cut, shade canopy,
+  // marina, control tower, etc).
+  const signature = buildSignatureFeature(curve, def, theme)
+  group.add(signature)
+  // Distant horizon layers themed per environment.
+  const horizon = buildHorizonLayers(curve, def, theme)
+  group.add(horizon)
 
   // Pit lane stored on the visual for camera queries.
   const pitDef = def.pit
