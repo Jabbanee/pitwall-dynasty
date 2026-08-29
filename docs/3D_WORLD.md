@@ -224,6 +224,71 @@ a glance from any trackside camera. The colour order matches
 the default team order so the player's box is roughly in the
 middle of the lane.
 
+## Authoritative pit timeline (P0/P4)
+
+`LiveRaceEngine` records every pit stop in a `pitStopsTimeline`
+array. Each entry has `startedAtSim`, `durationSim`,
+`compound`, `oldCompound`, `carId`, `teamId`. The renderer
+queries this via `pitStateAt(carId, simTime)` and reads the
+fraction. The visible stop duration therefore scales with the
+broadcast speed multiplier: at 2× a 22 sim-second stop takes 11
+wall seconds, at 4× 5.5 wall seconds. Compound swap is deferred
+until `progress >= 1` so the player sees the old tyres during
+the box stop. `tests/pit-authority.test.ts` (6 tests) covers the
+timeline presence, duration matching `pitLossSeconds`, progress
+0/1, and multiplayer determinism.
+
+## Track materials P4
+
+- Procedural asphalt `CanvasTexture` (512x512) with deterministic
+  speckle, faint longitudinal seams, repeat wrapping. Falls back
+  to a 1x1 `DataTexture` in headless test environments where
+  `document` is undefined so vitest still passes.
+- Per-vertex colour modulation for the rubbered racing line:
+  centre 20 % is darkest, 20 % on each side is worn, outer 40 %
+  is base asphalt. No visible texture tiling at trackside
+  distance.
+
+## Barriers P4
+
+- Armco: W-profile (thin post + wider rail on top) so it reads
+  as actual Armco rather than a low wall.
+- Concrete: wider segmented blocks with a thin top-stripe for
+  visible joints.
+- Tyre wall: three stacked boxes of decreasing width suggesting
+  a tyre stack.
+- Fence: thin posts.
+
+## Grandstands P4
+
+- Stepped terraces: 5 layers of increasing height stacked behind
+  the front row, with a slight forward step to suggest raked
+  seating.
+- Roof on top of large stands.
+- Crowd: rows of small coloured heads placed on each terrace
+  row, with team-coloured variants.
+
+## Visual QA harness (DEV)
+
+`window.__pitwallVisualQA` is a deterministic visual config helper
+for headless QA:
+
+```js
+window.__pitwallVisualQA.load({
+  speed: 2,                          // 1x / 2x / 4x
+  followDriverId: 'base.driver.00001',
+  camera: 'helicopter',              // or 'trackside', 'onboard', etc.
+  pitDriverId: 'base.driver.00002', // trigger an authoritative pit
+})
+const sample = window.__pitwallVisualQA.sample()
+// { simTime, speed, speedMultiplier, leaderLap, lapFraction, paused }
+```
+
+The harness is a no-op unless
+`localStorage.pitwall-dynasty.devProbe === '1'`, so production
+builds keep their behaviour. A future headless harness can drive
+the full 64-screenshot matrix deterministically.
+
 ### Dev motion probe
 
 When `localStorage.pitwall-dynasty.devProbe === '1'`, the
