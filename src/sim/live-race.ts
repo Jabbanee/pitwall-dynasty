@@ -110,6 +110,24 @@ export class LiveRaceEngine {
   /** Append-only command log — part of the deterministic replay input. */
   readonly commandLog: LiveCommand[] = []
 
+  /**
+   * Authoritative pit-stop timeline. Each entry records the
+   * car id, the sim time the stop began, the sim time the stop
+   * ended, the chosen compound and the team id. The renderer
+   * uses this to drive the on-screen pit animation: at 1× the
+   * wall-clock duration equals the sim duration; at 2× it
+   * halves; at 4× it quarters. There is no separate
+   * presentation-side stop timer.
+   */
+  private pitStopsTimeline: Array<{
+    carId: string
+    teamId: string
+    startedAtSim: number
+    durationSim: number
+    compound: TyreCompoundId
+    oldCompound: TyreCompoundId
+  }> = []
+
   private cars: LiveCar[] = []
   private rng: Rng
   private weatherChanges: Array<{ atLap: number; to: 'lightRain' | 'heavyRain' | 'dry' }> = []
@@ -331,6 +349,29 @@ export class LiveRaceEngine {
     return this.cars.find((c) => c.driverId === driverId)
   }
 
+  /**
+   * Authoritative pit presentation query.
+   *
+   * Returns the pit stop the given car is currently inside (or
+   * just finished), and where the car is along that stop in
+   * sim-time terms. The renderer uses this to drive the on-screen
+   * pit animation: the wall-clock duration of the visible stop
+   * equals (1 / speedMultiplier) × durationSim.
+   */
+  pitStateAt(carId: string, simTime: number): { startedAtSim: number; durationSim: number; compound: TyreCompoundId; oldCompound: TyreCompoundId; fraction: number } | null {
+    for (const stop of this.pitStopsTimeline) {
+      if (stop.carId !== carId) continue
+      if (simTime < stop.startedAtSim) continue
+      // We treat the stop as a window from startedAtSim to
+      // startedAtSim + durationSim. The renderer's frame
+      // rate is the only thing that can advance faster or
+      // slower — simTime itself is the master clock.
+      const frac = clamp((simTime - stop.startedAtSim) / stop.durationSim, 0, 1)
+      return { ...stop, fraction: frac }
+    }
+    return null
+  }
+
   orderedCars(): LiveCar[] {
     const list = this.cars.filter((c) => !c.retired)
     list.sort((a, b) => (b.lapsDone - a.lapsDone) || (a.totalTime - b.totalTime))
@@ -384,8 +425,22 @@ export class LiveRaceEngine {
         car.pitNextLap = false
         car.requestedCompound = undefined
         const pitLoss = c.pitLossSeconds + Math.max(0, this.rng.gauss(1.2, 0.9))
+        // Record the authoritative stop. The renderer reads this
+        // and animates the car at this exact sim-time duration,
+        // so 1×/2×/4× all show the same sim-time spent in the
+        // box (the wall-clock duration scales with the speed
+        // multiplier through dt * speed).
+        const startedAtSim = car.totalTime
+        this.pitStopsTimeline.push({
+          carId: car.driverId,
+          teamId: car.teamId,
+          startedAtSim,
+          durationSim: pitLoss,
+          compound,
+          oldCompound: oldTyre,
+        })
         car.totalTime += pitLoss
-        before.push(this.mkEvent(car.totalTime, 'pitStop', car, `PIT — ${oldTyre.toUpperCase()} → ${compound.toUpperCase()}`, { stopNumber: car.pitStops }))
+        before.push(this.mkEvent(car.totalTime, 'pitStop', car, `PIT — ${oldTyre.toUpperCase()} → ${compound.toUpperCase()}`, { stopNumber: car.pitStops, duration: pitLoss }))
         this.radio(car, 'Good stop. Tyres are cold for a lap.', 'info')
       }
 

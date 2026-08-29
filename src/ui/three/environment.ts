@@ -157,6 +157,78 @@ function populatePitBoxes(curve: THREE.CatmullRomCurve3, def: TrackVisualDefinit
 // Track ribbon (asphalt + edges)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Procedural asphalt texture (broadcast quality).
+//
+// Generates a project-owned CanvasTexture that gives the asphalt
+// surface visible grain, colour variation and a rubbered racing
+// line without relying on external assets. The same texture is
+// re-used for every circuit so the draw-call count stays low.
+// ---------------------------------------------------------------------------
+
+let ASPHALT_TEX: THREE.Texture | null = null
+
+function noise2d(x: number, y: number): number {
+  // Cheap deterministic value-noise. Good enough for a
+  // procedural asphalt speckle.
+  const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453
+  return s - Math.floor(s)
+}
+
+function makeAsphaltTexture(): THREE.Texture {
+  if (ASPHALT_TEX) return ASPHALT_TEX
+  // Procedural texture generation requires a real canvas. In
+  // headless test environments document is undefined, so we fall
+  // back to a single-pixel solid colour texture.
+  if (typeof document === 'undefined') {
+    const placeholder = new THREE.DataTexture(
+      new Uint8Array([0x2c, 0x2f, 0x37, 0xff]),
+      1,
+      1,
+    )
+    placeholder.needsUpdate = true
+    ASPHALT_TEX = placeholder
+    return placeholder
+  }
+  const W = 512
+  const H = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+  // Base asphalt colour (a slightly desaturated dark grey).
+  ctx.fillStyle = '#2c2f37'
+  ctx.fillRect(0, 0, W, H)
+  // Aggregate speckle.
+  const img = ctx.getImageData(0, 0, W, H)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const n = noise2d(x * 0.18, y * 0.18)
+      const m = noise2d(x * 0.7 + 3.1, y * 0.7 + 7.7)
+      const speck = 0.85 + 0.18 * n + 0.08 * m
+      const i = (y * W + x) * 4
+      img.data[i] = Math.min(255, Math.max(0, img.data[i] * speck))
+      img.data[i + 1] = Math.min(255, Math.max(0, img.data[i + 1] * speck))
+      img.data[i + 2] = Math.min(255, Math.max(0, img.data[i + 2] * speck))
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  // Faint longitudinal seam lines to break up repetition.
+  ctx.globalAlpha = 0.05
+  ctx.fillStyle = '#1a1c22'
+  for (let x = 0; x < W; x += 96) {
+    ctx.fillRect(x, 0, 1, H)
+  }
+  ctx.globalAlpha = 1
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(8, 4)
+  tex.anisotropy = 4
+  ASPHALT_TEX = tex
+  return tex
+}
+
 // Top-series team garage door colours. Each box on the pit lane
 // uses one of these in order so the player can identify their own
 // team visually. The order matches the default team order so the
@@ -227,12 +299,16 @@ function buildAsphalt(
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geo.setIndex(indices)
   geo.computeVertexNormals()
-  // Sectors: paint a 200 mm wide start/finish line at the
-  // beginning. We add a second mesh on top of the asphalt at the
-  // start.
+  // Broadcast-quality asphalt material: project-owned procedural
+  // texture + per-vertex colour modulation for the rubbered
+  // racing line. The texture gives surface grain; the vertex
+  // colour gives the line.
   const surface = new THREE.Mesh(
     geo,
-    new THREE.MeshLambertMaterial({ vertexColors: true }),
+    new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      map: makeAsphaltTexture(),
+    }),
   )
   return surface
   void def
@@ -397,13 +473,77 @@ function buildBarriers(
       const side = new THREE.Vector3().crossVectors(up, tan).normalize()
       const off = dir * (width / 2 + 1.4)
       const mid = p0.clone().lerp(p1, 0.5).addScaledVector(side, off)
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, p0.distanceTo(p1) * 1.05), mat)
-      seg.position.copy(mid)
-      seg.position.y += height / 2 + 0.05
-      // Orient the segment along the tangent.
       const lookAt = mid.clone().add(curve.getTangentAt(t0).clone().setY(0).normalize())
-      seg.lookAt(lookAt)
-      group.add(seg)
+      if (z.kind === 'armco') {
+        // W-profile: thin post + a wider rail on top. The rail
+        // sits at the very top of the barrier so it reads as
+        // actual Armco.
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.18, height * 0.65, p0.distanceTo(p1) * 1.05),
+          mat,
+        )
+        post.position.copy(mid)
+        post.position.y += (height * 0.65) / 2 + 0.05
+        post.lookAt(lookAt)
+        group.add(post)
+        const rail = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, height * 0.35, p0.distanceTo(p1) * 1.05),
+          mat,
+        )
+        rail.position.copy(mid)
+        rail.position.y += height * 0.65 + (height * 0.35) / 2 + 0.05
+        rail.lookAt(lookAt)
+        group.add(rail)
+      } else if (z.kind === 'concrete') {
+        // Wide, segmented blocks. The block width is larger
+        // and we add a thin top stripe for visible joints.
+        const segLen = p0.distanceTo(p1) * 1.05
+        const block = new THREE.Mesh(
+          new THREE.BoxGeometry(0.6, height, segLen),
+          mat,
+        )
+        block.position.copy(mid)
+        block.position.y += height / 2 + 0.05
+        block.lookAt(lookAt)
+        group.add(block)
+        // Joint stripe on top.
+        const joint = new THREE.Mesh(
+          new THREE.BoxGeometry(0.7, 0.04, 0.06),
+          sharedMaterial('concrete:joint', () => new THREE.MeshLambertMaterial({ color: 0x6a6a6c })),
+        )
+        joint.position.copy(mid)
+        joint.position.y += height + 0.06
+        joint.lookAt(lookAt)
+        group.add(joint)
+      } else if (z.kind === 'tyre-wall') {
+        // Three stacked boxes suggesting a tyre stack. Each
+        // stack is shorter and narrower so the wall reads as
+        // something you could climb over.
+        const stack = 3
+        for (let s = 0; s < stack; s++) {
+          const w = 0.6 - s * 0.04
+          const t = new THREE.Mesh(
+            new THREE.BoxGeometry(w, 0.22, p0.distanceTo(p1) * 1.05),
+            mat,
+          )
+          t.position.copy(mid)
+          t.position.y += 0.15 + s * 0.24
+          t.lookAt(lookAt)
+          group.add(t)
+        }
+      } else {
+        // Fence: a couple of thin posts + a near-transparent
+        // mesh plane. We use a light grey so the line is visible
+        // but doesn't dominate.
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, height, p0.distanceTo(p1) * 1.05),
+          mat,
+        )
+        post.position.copy(mid)
+        post.position.y += height / 2 + 0.05
+        post.lookAt(lookAt)
+        group.add(post)
+      }
     }
     // Sponsor boards behind Armco and concrete barriers — small
     // billboard-like rectangles that face the racing line. They
@@ -460,37 +600,79 @@ function buildGrandstands(curve: THREE.CatmullRomCurve3, def: TrackVisualDefinit
       const dir = s.side === 'left' ? -1 : 1
       const off = dir * (def.baseWidth / 2 + 16)
       const center = p0.clone().lerp(p1, 0.5).addScaledVector(side, off)
-      const stand = new THREE.Mesh(
-        new THREE.BoxGeometry(width / segs, 6 + cap * 4, 8),
-        sharedMaterial(`stand:${cap}:${i % 2}`, () => new THREE.MeshLambertMaterial({ color: 0x39424e })),
-      )
-      stand.position.copy(center)
-      stand.position.y = 3 + cap * 2
-      stand.lookAt(center.clone().add(tan))
-      group.add(stand)
-      // Crowd blocks (instanced)
+      const lookAt = center.clone().add(tan)
+      // Stepped terraces: 5 layers of increasing-height boxes
+      // stacked behind the front row. This reads as proper
+      // grandstand seating from any trackside camera.
+      const terraceSteps = 5
+      const terraceDepth = 7
+      const terraceStepH = 0.5
+      for (let s2 = 0; s2 < terraceSteps; s2++) {
+        const tH = 0.5 + s2 * terraceStepH
+        const tW = width / segs - s2 * 0.4
+        const tD = terraceDepth
+        const step = new THREE.Mesh(
+          new THREE.BoxGeometry(tW, tH, tD),
+          sharedMaterial(`terrace:${s2}`, () => new THREE.MeshLambertMaterial({ color: new THREE.Color(0x39, 0x42, 0x4e).multiplyScalar(1 - s2 * 0.04).getHex() })),
+        )
+        // Stack behind the racing line, with a slight forward
+        // step to suggest raked seating.
+        const stepSide = side.clone().multiplyScalar(dir * (s2 * 1.1))
+        const stepForward = tan.clone().multiplyScalar(s2 * 0.6)
+        const stepPos = center.clone().add(stepSide).add(stepForward)
+        step.position.copy(stepPos)
+        step.position.y = tH / 2 + sumTo(0, s2, terraceStepH)
+        step.lookAt(lookAt)
+        group.add(step)
+      }
+      // Roof on top of the largest stands.
+      if (cap >= 0.7) {
+        const roof = new THREE.Mesh(
+          new THREE.BoxGeometry(width / segs + 0.4, 0.18, terraceDepth + 1.4),
+          sharedMaterial('stand:roof', () => new THREE.MeshLambertMaterial({ color: 0x1c1f25 })),
+        )
+        const roofSide = side.clone().multiplyScalar(dir * (terraceSteps * 1.1))
+        const roofForward = tan.clone().multiplyScalar(terraceSteps * 0.6)
+        const roofPos = center.clone().add(roofSide).add(roofForward)
+        roof.position.copy(roofPos)
+        roof.position.y = sumTo(0, terraceSteps, terraceStepH) + 0.18
+        roof.lookAt(lookAt)
+        group.add(roof)
+      }
+      // Crowd: rows of small coloured heads + bodies.
       if (graphicsLevel >= 1) {
-        const crowdCount = cap >= 1 ? 32 : cap >= 0.7 ? 22 : 12
-        const colors = [0xc25a4a, 0x6c7e95, 0xd1b35a, 0x4f5d75, 0x8a4f3a, 0x4a6c52]
+        const crowdCount = cap >= 1 ? 48 : cap >= 0.7 ? 32 : 18
+        const colors = [0xc25a4a, 0x6c7e95, 0xd1b35a, 0x4f5d75, 0x8a4f3a, 0x4a6c52, 0xe0e0e6, 0x9a3030]
         for (let c = 0; c < crowdCount; c++) {
+          const row = Math.floor(c / 8) % terraceSteps
+          const col = c % 8
           const ch = new THREE.Mesh(
-            new THREE.BoxGeometry(0.45, 0.55, 0.35),
+            new THREE.BoxGeometry(0.4, 0.55, 0.3),
             new THREE.MeshBasicMaterial({ color: colors[c % colors.length] }),
           )
-          ch.position.copy(center)
-          ch.position.y = 5 + cap * 2
-          ch.position.add(new THREE.Vector3(
-            ((c % 8) - 3.5) * (width / segs) / 8,
+          const chSide = side.clone().multiplyScalar(dir * (row * 1.1 + 0.4))
+          const chForward = tan.clone().multiplyScalar(row * 0.6 + 0.4)
+          const chPos = center.clone().add(chSide).add(chForward)
+          chPos.add(new THREE.Vector3(
+            (col - 3.5) * (width / segs) / 8,
             0,
-            ((c >> 3) - 1.5) * 0.5,
+            0,
           ))
-          ch.lookAt(center.clone().add(tan))
+          ch.position.copy(chPos)
+          ch.position.y = sumTo(0, row, terraceStepH) + 0.3
+          ch.lookAt(lookAt)
           group.add(ch)
         }
       }
     }
   }
   return group
+}
+
+function sumTo(start: number, count: number, step: number): number {
+  let s = start
+  for (let i = 0; i < count; i++) s += step
+  return s
 }
 
 // ---------------------------------------------------------------------------

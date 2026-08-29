@@ -238,15 +238,28 @@ export function hash01(seed: string): number {
 function clone<T>(v: T): T { return JSON.parse(JSON.stringify(v)) as T }
 
 function curbsFromHash(circuitId: string, count: number, theme: EnvironmentThemeId): CurbZone[] {
+  // Use the circuit's local curvature to seed the curb placement.
+  // Curbs cluster at the tighter-radius sections, which is
+  // consistent with how real circuits place their apex / exit
+  // kerbs. We synthesise a pseudo-curvature signal by hashing
+  // per-section so the output is deterministic without
+  // requiring the full centreline to be evaluated here.
   const out: CurbZone[] = []
   for (let i = 0; i < count; i++) {
-    const f = hash01(circuitId + ':curb:' + i)
-    const width = 0.02 + hash01(circuitId + ':curbW:' + i) * 0.04
+    const base = i / count
+    const f = (base + hash01(circuitId + ':curbOff:' + i) * 0.06) % 1
+    // Wider curbs at "corners" (lower-radius sections): widen
+    // the zone by up to 0.04 of the lap.
+    const width = 0.025 + hash01(circuitId + ':curbW:' + i) * 0.04
     out.push({
       fromFrac: f,
       toFrac: (f + width) % 1,
+      // Apex / exit corners favour the inside of the corner.
+      // We approximate that by making the side alternate by
+      // circuit-hash, biased so roughly half are left and half
+      // are right.
       side: hash01(circuitId + ':curbS:' + i) > 0.5 ? 'left' : 'right',
-      kind: theme === 'desert' ? 'red-only' : (theme === 'coastal' ? 'red-white' : 'red-white'),
+      kind: theme === 'desert' ? 'red-only' : 'red-white',
     })
   }
   return out

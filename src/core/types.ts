@@ -495,6 +495,8 @@ export interface RacePackage {
   setup: SetupChoice
   tyreAllocation: Partial<Record<TyreCompoundId, number>>
   strategy: StrategyPlaybook
+  /** Optional pre-planned next-stop compound. Cleared after a stop. */
+  requestedCompound?: TyreCompoundId
   reliability: number // effective reliability 0..100 incl. staff/parts
   staffModifiers: {
     strategySkill: number
