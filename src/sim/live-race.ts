@@ -118,12 +118,23 @@ export class LiveRaceEngine {
    * wall-clock duration equals the sim duration; at 2× it
    * halves; at 4× it quarters. There is no separate
    * presentation-side stop timer.
+   *
+   * The single total `durationSim` is the authoritative
+   * competitive time loss. For visual phase decomposition
+   * (`entrySim`, `boxSim`, `exitSim`), the renderer derives
+   * three non-overlapping phases that sum to the total. This
+   * keeps the competitive outcome (total loss) authoritative
+   * while letting the renderer show a believable
+   * peel-off / stop / merge-back sequence.
    */
   private pitStopsTimeline: Array<{
     carId: string
     teamId: string
     startedAtSim: number
     durationSim: number
+    entrySim: number
+    boxSim: number
+    exitSim: number
     compound: TyreCompoundId
     oldCompound: TyreCompoundId
   }> = []
@@ -357,17 +368,55 @@ export class LiveRaceEngine {
    * sim-time terms. The renderer uses this to drive the on-screen
    * pit animation: the wall-clock duration of the visible stop
    * equals (1 / speedMultiplier) × durationSim.
+   *
+   * The returned object also exposes `boxFraction` and
+   * `boxStartAtSim` / `boxEndAtSim` so the renderer (and the
+   * pit crew) can synchronize their stationary-service animations
+   * to the same authoritative window the simulation is using.
    */
-  pitStateAt(carId: string, simTime: number): { startedAtSim: number; durationSim: number; compound: TyreCompoundId; oldCompound: TyreCompoundId; fraction: number } | null {
+  pitStateAt(carId: string, simTime: number): {
+    startedAtSim: number
+    durationSim: number
+    entrySim: number
+    boxSim: number
+    exitSim: number
+    boxStartAtSim: number
+    boxEndAtSim: number
+    compound: TyreCompoundId
+    oldCompound: TyreCompoundId
+    fraction: number
+    boxFraction: number
+    phase: 'entry' | 'box' | 'exit' | 'done'
+  } | null {
     for (const stop of this.pitStopsTimeline) {
       if (stop.carId !== carId) continue
       if (simTime < stop.startedAtSim) continue
-      // We treat the stop as a window from startedAtSim to
-      // startedAtSim + durationSim. The renderer's frame
-      // rate is the only thing that can advance faster or
-      // slower — simTime itself is the master clock.
-      const frac = clamp((simTime - stop.startedAtSim) / stop.durationSim, 0, 1)
-      return { ...stop, fraction: frac }
+      const offset = simTime - stop.startedAtSim
+      const frac = clamp(offset / stop.durationSim, 0, 1)
+      const boxStart = stop.startedAtSim + stop.entrySim
+      const boxEnd = boxStart + stop.boxSim
+      let phase: 'entry' | 'box' | 'exit' | 'done'
+      if (offset < stop.entrySim) phase = 'entry'
+      else if (offset < stop.entrySim + stop.boxSim) phase = 'box'
+      else if (offset < stop.durationSim) phase = 'exit'
+      else phase = 'done'
+      const boxFraction = phase === 'box' || phase === 'exit' || phase === 'done'
+        ? clamp((simTime - boxStart) / stop.boxSim, 0, 1)
+        : 0
+      return {
+        startedAtSim: stop.startedAtSim,
+        durationSim: stop.durationSim,
+        entrySim: stop.entrySim,
+        boxSim: stop.boxSim,
+        exitSim: stop.exitSim,
+        boxStartAtSim: boxStart,
+        boxEndAtSim: boxEnd,
+        compound: stop.compound,
+        oldCompound: stop.oldCompound,
+        fraction: frac,
+        boxFraction,
+        phase,
+      }
     }
     return null
   }
@@ -425,8 +474,34 @@ export class LiveRaceEngine {
         car.pitNextLap = false
         car.requestedCompound = undefined
         const pitLoss = c.pitLossSeconds + Math.max(0, this.rng.gauss(1.2, 0.9))
+        // Decompose the competitive loss into three non-overlapping
+        // phases that sum to the total. F1-realistic split:
+        // - entry: peel off + slow lane transit to the box
+        // - box: stationary service (wheel change etc.)
+        // - exit: box to racing line merge
+        // The renderer maps these to its three presentation
+        // stages. Total stays exactly pitLoss; only the
+        // distribution is decomposed. A small noise term on
+        // the box keeps it deterministic for a given seed.
+        const entryShare = 0.22
+        const boxShare = 0.14
+        const exitShare = 1 - entryShare - boxShare
+        const boxNoise = this.rng.gauss(0, 0.15)
+        let entrySim = pitLoss * entryShare
+        let boxSim = pitLoss * (boxShare + boxNoise * 0.05)
+        let exitSim = pitLoss * exitShare
+        // Clamp box to a believable 2.5 - 3.5 s window so the
+        // service phase does not collapse to zero on short
+        // stops.
+        if (boxSim < 2.5) boxSim = 2.5
+        if (boxSim > 3.6) boxSim = 3.6
+        // Rescale entry + exit so the three still sum to pitLoss.
+        const overhead = pitLoss - boxSim
+        const otherShare = entryShare / (entryShare + exitShare)
+        entrySim = overhead * otherShare
+        exitSim = overhead - entrySim
         // Record the authoritative stop. The renderer reads this
-        // and animates the car at this exact sim-time duration,
+        // and animates the car at these exact sim-time durations,
         // so 1×/2×/4× all show the same sim-time spent in the
         // box (the wall-clock duration scales with the speed
         // multiplier through dt * speed).
@@ -436,6 +511,9 @@ export class LiveRaceEngine {
           teamId: car.teamId,
           startedAtSim,
           durationSim: pitLoss,
+          entrySim,
+          boxSim,
+          exitSim,
           compound,
           oldCompound: oldTyre,
         })

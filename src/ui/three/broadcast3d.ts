@@ -124,7 +124,20 @@ export function renderBroadcast3D(root: HTMLElement) {
     frameAdvance: (dt: number) => unknown
     frameStep: (dt: number) => unknown
     lapFractionOf: (car: { lastLapTime: number; lapStartTime: number }) => number
-    pitStateAt: (carId: string, simTime: number) => { startedAtSim: number; durationSim: number; compound: string; oldCompound: string; fraction: number } | null
+    pitStateAt: (carId: string, simTime: number) => {
+      startedAtSim: number
+      durationSim: number
+      entrySim: number
+      boxSim: number
+      exitSim: number
+      boxStartAtSim: number
+      boxEndAtSim: number
+      compound: string
+      oldCompound: string
+      fraction: number
+      boxFraction: number
+      phase: 'entry' | 'box' | 'exit' | 'done'
+    } | null
     orderedCars: () => Array<{ driverId: string; teamId: string; carNumber: number; position: number; lapsDone: number; totalTime: number; tyre: string; tyreAge: number; tyreWear: number; pitStops: number; strategy: { paceMode: string; energy: string }; damage: number; pitThisLap: boolean; pitNextLap: boolean; retired: boolean; finished: boolean }>
     results: () => Array<{ driverId: string; teamId: string; finishPosition: number; classified: boolean; lapsCompleted: number; bestLapTime?: number; pitStops: number; points: number; fastestLap: boolean; dnfReason?: string }>
     applyCommand: (cmd: unknown) => { ok: boolean; response: string; deferred?: boolean }
@@ -216,8 +229,33 @@ export function renderBroadcast3D(root: HTMLElement) {
   let rainPoints: THREE.Points | null = null
   let rainVel: Float32Array | null = null
   let rainLife: Float32Array | null = null
-  const SPRAY_MAX = 600
-  const RAIN_MAX = 800
+  // Graphics-preset-scaled particle counts. The broadcast reads
+  // the current preset and the weather effect uses 25% of the
+  // budget on LOW, 60% on MED, 100% on HIGH (default) and 175% on
+  // ULTRA. This is one of the visible differences between
+  // presets.
+  const SPRAY_BUDGET = 600
+  const RAIN_BUDGET = 800
+  function presetParticleScale(): number {
+    try {
+      const raw = localStorage.getItem('pitwall-dynasty.settings')
+      if (!raw) return 1
+      const parsed = JSON.parse(raw)
+      const q = parsed?.graphicsQuality
+      if (q === 'low') return 0.25
+      if (q === 'medium') return 0.6
+      if (q === 'ultra') return 1.75
+      return 1
+    } catch (_) { return 1 }
+  }
+  let SPRAY_MAX = SPRAY_BUDGET
+  let RAIN_MAX = RAIN_BUDGET
+  function refreshPresetParticleCounts() {
+    const s = presetParticleScale()
+    SPRAY_MAX = Math.max(80, Math.round(SPRAY_BUDGET * s))
+    RAIN_MAX = Math.max(200, Math.round(RAIN_BUDGET * s))
+  }
+  refreshPresetParticleCounts()
   function ensureSpray() {
     if (sprayPoints) return
     sprayGeo = new THREE.BufferGeometry()
@@ -461,6 +499,133 @@ export function renderBroadcast3D(root: HTMLElement) {
     return s
   }
 
+  // Lightweight pit crew. For each team we build a small set of
+  // low-poly silhouettes once and reuse them. The silhouettes
+  // are positioned at the team's box on the pit centreline and
+  // animated in / out based on the authoritative box fraction
+  // (0..1) supplied by the engine. The team colour drives the
+  // helmet / suit, so the player can tell at a glance which team
+  // is pitting.
+  type CrewFigure = {
+    group: THREE.Group
+    homeY: number
+    homeX: number
+    homeZ: number
+    animating: boolean
+    targetY: number
+  }
+  const crewByTeam = new Map<string, { figures: CrewFigure[]; created: boolean }>()
+  function teamCrewColor(teamId: string): number {
+    let h = 2166136261 >>> 0
+    for (let i = 0; i < teamId.length; i++) {
+      h ^= teamId.charCodeAt(i)
+      h = Math.imul(h, 16777619) >>> 0
+    }
+    // Stable mapping to one of the 10 team colours.
+    const palette = [
+      0xe63946, 0x4a8fd1, 0x4ad17d, 0xe6a14a, 0xb0b0b0,
+      0x9b6dd1, 0xd1a14a, 0x4ad1c0, 0xd14a8c, 0x6c7a8a,
+    ]
+    return palette[Math.abs(h) % palette.length]
+  }
+  function buildCrewFigure(suit: number): THREE.Group {
+    const g = new THREE.Group()
+    // Torso
+    const torso = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.9, 0.3),
+      new THREE.MeshLambertMaterial({ color: suit }),
+    )
+    torso.position.y = 0.45
+    g.add(torso)
+    // Head
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.32, 0.32),
+      new THREE.MeshLambertMaterial({ color: 0xe6e6e8 }),
+    )
+    head.position.y = 1.1
+    g.add(head)
+    // Helmet stripe
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.06, 0.34),
+      new THREE.MeshBasicMaterial({ color: suit }),
+    )
+    stripe.position.y = 1.25
+    g.add(stripe)
+    return g
+  }
+  function buildPitCrew(teamId: string): { figures: CrewFigure[] } {
+    if (!track) return { figures: [] }
+    const suit = teamCrewColor(teamId)
+    const positions: CrewFigure[] = []
+    // 4 crew around the car: front-jack, rear-jack, two tyre
+    // changers. We sample the pit centreline at the team's
+    // box position and place the figures on either side of it.
+    const boxPos = new THREE.Vector3()
+    track.pitBoxFor(teamId, boxPos)
+    // Make the crew members face the lane (rotate around y).
+    const laneTangent = new THREE.Vector3()
+    track.pitPositionAt(0.5, laneTangent)
+    const laneDir = laneTangent.clone().sub(boxPos).setY(0).normalize()
+    const angle = Math.atan2(laneDir.x, laneDir.z)
+    const offsets: Array<[number, number, number]> = [
+      [-1.0, 0, -0.6],   // front-left
+      [ 1.0, 0, -0.6],   // front-right
+      [-1.0, 0,  0.7],   // rear-left
+      [ 1.0, 0,  0.7],   // rear-right
+    ]
+    for (const [dx, _dy, dz] of offsets) {
+      const fig = buildCrewFigure(suit)
+      // Rotate offset into world frame.
+      const lx = dx * Math.cos(angle) - dz * Math.sin(angle)
+      const lz = dx * Math.sin(angle) + dz * Math.cos(angle)
+      fig.position.set(boxPos.x + lx, 0, boxPos.z + lz)
+      fig.rotation.y = angle
+      const homeY = 0
+      const homeX = fig.position.x
+      const homeZ = fig.position.z
+      // Start hidden underground — they animate up from the
+      // service pit during the box phase.
+      fig.position.y = -2
+      scene.add(fig)
+      positions.push({ group: fig, homeY, homeX, homeZ, animating: false, targetY: 0 })
+    }
+    return { figures: positions }
+  }
+  function animatePitCrew(teamId: string, boxFraction: number) {
+    if (!track) return
+    let entry = crewByTeam.get(teamId)
+    if (!entry) {
+      const built = buildPitCrew(teamId)
+      entry = { figures: built.figures, created: true }
+      crewByTeam.set(teamId, entry)
+    }
+    // 0 = hidden, 1 = fully visible. Smoothly approach the box.
+    for (const f of entry.figures) {
+      const vis = clamp(boxFraction, 0, 1)
+      // Crew appears as the box phase starts and clears when
+      // the box phase ends. Use a smooth ramp.
+      const targetY = vis * 0.6
+      f.group.position.y = f.homeY + targetY
+      // Slight body sway to suggest "working on the car".
+      f.group.rotation.z = Math.sin(performance.now() * 0.012 + f.homeX) * 0.08 * vis
+    }
+  }
+  // Drive the crew animation every frame so the body sway
+  // continues smoothly even when no car is pitting this team.
+  function tickPitCrewAnimation() {
+    const t = performance.now()
+    for (const entry of crewByTeam.values()) {
+      for (const f of entry.figures) {
+        // Sway based on the figure's home position. We use the
+        // current y position as the amplitude proxy.
+        const vis = clamp(f.group.position.y / 0.6, 0, 1)
+        if (vis > 0.01) {
+          f.group.rotation.z = Math.sin(t * 0.012 + f.homeX) * 0.08 * vis
+        }
+      }
+    }
+  }
+
   function updateCarPositions(snapshot: RaceSnapshot, _dt: number) {
     if (!track) return
     const leader = snapshot.cars.find((c) => c.position === 1)
@@ -484,15 +649,22 @@ export function renderBroadcast3D(root: HTMLElement) {
         // Use the authoritative duration for the lane animation
         // length. We allocate a fixed amount of pit centreline
         // for the lane transit and the rest for the box stop.
-        // laneFraction = 0.30 of the lane, stopFraction = 0.40,
-        // exitFraction = 0.30.
-        const laneProgress = Math.min(0.5, pres.progress * 2) * 0.6 // 0..0.3 of centreline
-        const stopProgress = Math.max(0, Math.min(1, (pres.progress * 2 - 0.5) * 2)) // 0..1 between progress 0.25..0.75
-        const exitProgress = Math.max(0, Math.min(1, (pres.progress * 2 - 1.0) * 2)) * 0.6 // 0..0.3
+        // The decomposition comes directly from the authoritative
+        // engine: entry / box / exit sim-time sub-windows. We
+        // simply project those onto the centreline path u in
+        // [0..1].
         let pathU = 0
-        if (pres.progress < 0.25) pathU = laneProgress
-        else if (pres.progress < 0.75) pathU = 0.3 + stopProgress * 0.4
-        else pathU = 0.7 + exitProgress
+        if (ps.phase === 'entry') {
+          pathU = 0.3 * (ps.fraction * (ps.durationSim / Math.max(0.01, ps.entrySim)))
+        } else if (ps.phase === 'box') {
+          const t = (ps.fraction * ps.durationSim - ps.entrySim) / Math.max(0.01, ps.boxSim)
+          pathU = 0.3 + 0.4 * clamp(t, 0, 1)
+        } else if (ps.phase === 'exit') {
+          const t = (ps.fraction * ps.durationSim - ps.entrySim - ps.boxSim) / Math.max(0.01, ps.exitSim)
+          pathU = 0.7 + 0.3 * clamp(t, 0, 1)
+        } else {
+          pathU = 1
+        }
         track.pitPositionAt(pathU, tmpPos)
         const ahead = new THREE.Vector3()
         track.pitPositionAt(Math.min(0.999, pathU + 0.01), ahead)
@@ -502,33 +674,34 @@ export function renderBroadcast3D(root: HTMLElement) {
         // Speed in the box is zero; in the lane it is the speed
         // limit; on the entry / exit peel it is reduced.
         let visualSpeed = 0
-        if (pres.progress < 0.25 || pres.progress >= 0.75) {
+        if (ps.phase === 'entry' || ps.phase === 'exit') {
           visualSpeed = 22 // ~80 km/h
         }
         c3d.visual.update(0, visualSpeed, 0, 0)
         // Switch the displayed compound AFTER the stop window
         // completes so the player sees the old tyres in the box.
-        if (pres.progress >= 1) {
+        if (ps.phase === 'done') {
           c3d.visual.setCompound(compoundIndex(ps.compound))
         } else {
           c3d.visual.setCompound(compoundIndex(ps.oldCompound))
         }
         c3d.visual.setRetired(!!car.retired)
+        // Drive the pit crew animation from the authoritative box
+        // window. Crew figures are pre-built and just animate in
+        // and out per the box fraction.
+        animatePitCrew(c2.teamId, ps.boxFraction)
         continue
       } else if (pitPresentation.has(car.driverId)) {
         // The car was pitting last frame but the authoritative
         // engine says the stop is over. Update the compound and
         // drop the presentation entry on the next racing-line
         // assignment.
-        const last = pitPresentation.get(car.driverId)!
-        // best-effort: try to find the authoritative stop and
-        // apply its final compound
         const ps = localEngine
           ? localEngine.pitStateAt(car.driverId, localEngine.state.simTime)
           : null
         if (ps) c3d.visual.setCompound(compoundIndex(ps.compound))
-        else if (last) c3d.visual.setCompound(compoundIndex(car.tyre))
         pitPresentation.delete(car.driverId)
+        animatePitCrew(c2.teamId, 1)
       }
       // Use the local engine's lap-fraction helper for the
       // single-player case. It is the only place that has
@@ -580,6 +753,13 @@ export function renderBroadcast3D(root: HTMLElement) {
     directorMode = mode
     director.setManualMode(mode)
   }
+  // Tiny numeric helpers used by the pit-state mapper and the
+  // crew animator. The broadcast's main file is too large to
+  // import a math helper for these one-liners.
+  function clamp(x: number, lo: number, hi: number): number {
+    return x < lo ? lo : x > hi ? hi : x
+  }
+
   // Expose the mode switcher on the broadcast wrap so UI buttons
   // (helicopter / trackside / etc) can drive it.
   ;(wrap as unknown as { __setCameraMode?: (m: CameraMode) => void }).__setCameraMode = setCameraMode
@@ -1501,6 +1681,7 @@ export function renderBroadcast3D(root: HTMLElement) {
       tickSpray(dt, wetness)
       tickRain(dt, condition)
     }
+    tickPitCrewAnimation()
     maybeMotionProbe()
     maybeTemporalProbe()
     renderer.render(scene, camera)

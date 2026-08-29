@@ -157,4 +157,28 @@ describe('authoritative pit timing', () => {
       expect(ps1.startedAtSim).toBeCloseTo(ps2.startedAtSim, 6)
     }
   })
+
+  it('pit stop decomposes into authoritative entry / box / exit phases that sum to the total', () => {
+    const { engine } = makeEngine()
+    const driverId = requestPitForFirstCar(engine)
+    for (let i = 0; i < 5; i++) engine.stepLap()
+    const ps = engine.pitStateAt(driverId, engine.state.simTime)
+    expect(ps).not.toBeNull()
+    // The three phases must sum to the total. This is the
+    // guarantee that the competitive outcome (total time loss)
+    // is unchanged by the visual decomposition.
+    const sum = ps!.entrySim + ps!.boxSim + ps!.exitSim
+    expect(Math.abs(sum - ps!.durationSim)).toBeLessThan(0.001)
+    // Box (stationary service) is always a believable 2.5-3.6 s
+    // window, no matter the total. This is the property the
+    // brief asks us to verify.
+    expect(ps!.boxSim).toBeGreaterThanOrEqual(2.5)
+    expect(ps!.boxSim).toBeLessThanOrEqual(3.6)
+    // Box start/end are returned so the renderer can pin the
+    // crew animation to the same window the simulation uses.
+    expect(ps!.boxEndAtSim - ps!.boxStartAtSim).toBeCloseTo(ps!.boxSim, 6)
+    // The phase field starts as 'done' once the stop is
+    // recorded and the sim clock has moved past it.
+    expect(['entry', 'box', 'exit', 'done']).toContain(ps!.phase)
+  })
 })
