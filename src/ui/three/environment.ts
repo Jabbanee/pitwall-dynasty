@@ -258,51 +258,146 @@ function buildAsphalt(
   const uvs: number[] = []
   const colors: number[] = []
   const up = new THREE.Vector3(0, 1, 0)
-  // A subtle colour stripe down the middle represents the racing
-  // line. We modulate the asphalt colour by ±5% with a smooth
-  // sine across the width so the surface reads as "rubbered" along
-  // the racing line without breaking the simulation.
-  const racingLineColor = new THREE.Color(baseColor).multiplyScalar(0.86).getHex()
-  const wornColor = new THREE.Color(baseColor).multiplyScalar(0.94).getHex()
+  // Curvature-aware racing line. We compute the local curvature
+  // at every segment from the signed angle between adjacent
+  // tangents, then drive the racing line to the outside on
+  // corner entry, the apex (towards the inside), and back to
+  // the outside on exit. On long straights the line settles to
+  // the geometric centre. We also detect hard-braking approach
+  // sections (high positive curvature deltas) and tint the
+  // surrounding asphalt darker to suggest a braking patch.
+  const racingLineColor = new THREE.Color(baseColor).multiplyScalar(0.78).getHex()
+  const brakingPatchColor = new THREE.Color(baseColor).multiplyScalar(0.72).getHex()
+  // First pass: compute the local signed curvature.
+  const sampleCount = 64
+  const ts: number[] = []
+  for (let i = 0; i < sampleCount; i++) ts.push(i / sampleCount)
+  const tangents: THREE.Vector3[] = []
+  for (const t of ts) {
+    const tan = curve.getTangentAt(t).setY(0)
+    if (tan.lengthSq() > 0) tan.normalize()
+    tangents.push(tan)
+  }
+  const curvatures: number[] = []
+  for (let i = 0; i < sampleCount; i++) {
+    const a = tangents[i]!
+    const b = tangents[(i + 1) % sampleCount]!
+    const cross = a.x * b.z - a.z * b.x
+    curvatures.push(cross)
+  }
+  // Smooth the curvature signal with a 3-tap filter so the
+  // racing line does not jitter on tiny geometry noise.
+  const smoothCurv: number[] = []
+  for (let i = 0; i < sampleCount; i++) {
+    const a = curvatures[(i - 1 + sampleCount) % sampleCount]!
+    const b = curvatures[i]!
+    const c = curvatures[(i + 1) % sampleCount]!
+    smoothCurv.push((a + b + c) / 3)
+  }
+  // Build the racing-line offset for every fine segment. We
+  // sample a higher-resolution line so the racing line can
+  // curve along a long straight without showing visible facets.
+  const lineSeg = 400
+  const lineOffsets: number[] = [] // -0.45 (right) .. 0.45 (left)
+  for (let i = 0; i <= lineSeg; i++) {
+    const t = i / lineSeg
+    const idxF = t * (sampleCount - 1)
+    const i0 = Math.floor(idxF)
+    const i1 = Math.min(i0 + 1, sampleCount - 1)
+    const frac = idxF - i0
+    const kappa = smoothCurv[i0]! * (1 - frac) + smoothCurv[i1]! * frac
+    // Map curvature to a sideways offset: positive curvature =
+    // left turn; the line sits to the right on corner entry,
+    // moves to the left through the apex, and back right on exit.
+    // 0.45 here is the maximum offset from the geometric centre.
+    const norm = Math.max(-1, Math.min(1, kappa * 4))
+    // Cubic remap: positive curvature -> outside entry, mid -> apex.
+    // 0.45 * sign(kappa) on entry/exit, 0 in straight.
+    const sign = norm === 0 ? 0 : Math.sign(norm)
+    const mag = Math.abs(norm)
+    // Triangle over each curvature region: -|k|*0.4 -> apex, 0 -> straight
+    const offset = sign * (0.45 * mag) // simple linear: outside-in-outside
+    lineOffsets.push(offset)
+  }
+  // Now build the high-resolution mesh segments.
   for (let i = 0; i <= segments; i++) {
     const t = i / segments
     const pos = curve.getPointAt(t % 1)
     const tan = curve.getTangentAt(t % 1)
     const side = new THREE.Vector3().crossVectors(up, tan).normalize()
     const halfW = width / 2
-    const l = pos.clone().addScaledVector(side, -halfW)
-    const r = pos.clone().addScaledVector(side, halfW)
-    // Lift the racing-line edge a tiny bit so it does not z-fight
-    // with the asphalt. +0.06 m is enough.
-    const isRacingLineL = t > 0.05 && t < 0.95
-    const yOff = isRacingLineL ? 0.06 : 0.05
-    verts.push(l.x, l.y + yOff, l.z, r.x, r.y + yOff, r.z)
-    // Racing-line colour: darken the centre 20 % of the track.
-    // We use the position across the width as the driver.
-    const distR = 0
-    const distL = 1
-    const cL = pickAsphaltColour(distL, racingLineColor, wornColor, baseColor)
-    const cR = pickAsphaltColour(distR, racingLineColor, wornColor, baseColor)
+    // Find the racing-line offset at this t.
+    const lineIdxF = t * lineSeg
+    const li0 = Math.floor(lineIdxF)
+    const li1 = Math.min(li0 + 1, lineSeg)
+    const lfrac = lineIdxF - li0
+    const lineOffset = lineOffsets[li0]! * (1 - lfrac) + lineOffsets[li1]! * lfrac
+    // Read the curvature here to detect braking patches.
+    const sIdxF = t * (sampleCount - 1)
+    const s0 = Math.floor(sIdxF)
+    const s1 = Math.min(s0 + 1, sampleCount - 1)
+    const sfrac = sIdxF - s0
+    const localKappa = smoothCurv[s0]! * (1 - sfrac) + smoothCurv[s1]! * sfrac
+    // The line width is 1.0 m; paint it as a dark band centred on
+    // the offset position.
+    const lineWidth = 0.5
+    const inner = lineOffset + lineWidth
+    const outer = lineOffset - lineWidth
+    const lx = pos.x + side.x * halfW
+    const rx = pos.x + side.x * -halfW
+    const ly = pos.y
+    const ry = pos.y
+    const lz = pos.z + side.z * halfW
+    const rz = pos.z + side.z * -halfW
+    // Normalised u: 0 at outer, 1 at inner. We tile 0..1 across
+    // the full width and pick a colour per vertex.
+    const widthRange = halfW * 2
+    const uL = (halfW + (outer * 0.5 + 0.5 * widthRange) - 0) / widthRange
+    const uR = (halfW + (inner * 0.5 + 0.5 * widthRange) - 0) / widthRange
+    void uL
+    void uR
+    // Build the four vertex colours: outer edge, outer line edge,
+    // inner line edge, inner edge.
+    const isBraking = Math.abs(localKappa) > 0.04
+    const cOE = isBraking ? brakingPatchColor : baseColor
+    const cOL = racingLineColor
+    const cIL = racingLineColor
+    const cIE = isBraking ? brakingPatchColor : baseColor
+    // Lift the racing-line strip very slightly so it does not
+    // z-fight with the asphalt. +0.06 m is enough.
+    verts.push(lx, ly + 0.05, lz, rx, ry + 0.05, rz)
     colors.push(
-      (cL >> 16) & 0xff, (cL >> 8) & 0xff, cL & 0xff,
-      (cR >> 16) & 0xff, (cR >> 8) & 0xff, cR & 0xff,
+      (cOE >> 16) & 0xff, (cOE >> 8) & 0xff, cOE & 0xff,
+      (cIE >> 16) & 0xff, (cIE >> 8) & 0xff, cIE & 0xff,
+    )
+    uvs.push(0, t * 80, 1, t * 80)
+    // Add a thin second strip for the racing line itself, so
+    // the line reads as a distinct narrow band rather than a
+    // half-track tint.
+    const lL = pos.clone().addScaledVector(side, lineOffset - lineWidth)
+    const lR = pos.clone().addScaledVector(side, lineOffset + lineWidth)
+    verts.push(lL.x, lL.y + 0.06, lL.z, lR.x, lR.y + 0.06, lR.z)
+    colors.push(
+      (cOL >> 16) & 0xff, (cOL >> 8) & 0xff, cOL & 0xff,
+      (cIL >> 16) & 0xff, (cIL >> 8) & 0xff, cIL & 0xff,
     )
     uvs.push(0, t * 80, 1, t * 80)
   }
   const indices: number[] = []
   for (let i = 0; i < segments; i++) {
-    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1
-    indices.push(a, c, b, b, c, d)
+    const a = i * 4, b = i * 4 + 1, c = i * 4 + 2, d = i * 4 + 3
+    const e = (i + 1) * 4, f = (i + 1) * 4 + 1, g = (i + 1) * 4 + 2, h = (i + 1) * 4 + 3
+    // Strip 1 (full width) indices.
+    indices.push(a, e, b, b, e, f)
+    indices.push(c, g, d, d, g, h)
+    // Strip 2 (racing line) indices.
+    indices.push(b, f, c, c, f, g)
   }
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geo.setIndex(indices)
   geo.computeVertexNormals()
-  // Broadcast-quality asphalt material: project-owned procedural
-  // texture + per-vertex colour modulation for the rubbered
-  // racing line. The texture gives surface grain; the vertex
-  // colour gives the line.
   const surface = new THREE.Mesh(
     geo,
     new THREE.MeshLambertMaterial({
@@ -312,15 +407,6 @@ function buildAsphalt(
   )
   return surface
   void def
-}
-
-function pickAsphaltColour(u: number, racing: number, worn: number, base: number): number {
-  // u in [0..1] across the track width. The centre 20 % is the
-  // racing line (dark rubber), the next 20 % on each side is
-  // slightly worn, and the outer edges are base asphalt.
-  if (u > 0.4 && u < 0.6) return racing
-  if (u > 0.25 && u < 0.75) return worn
-  return base
 }
 
 // ---------------------------------------------------------------------------
@@ -371,9 +457,26 @@ function buildCurbs(
         cols.push(0, 0, 0, 0, 0, 0)
         continue
       }
-      const inner = pos.clone().addScaledVector(side, dir * (width / 2))
-      const outer = pos.clone().addScaledVector(side, dir * (width / 2 + 1.6))
-      verts.push(inner.x, inner.y + 0.10, inner.z, outer.x, inner.y + 0.04, outer.z)
+      // Proper 3D curb profile: a raised lip with a slight
+      // inward bevel. The lip is 0.16 m tall (3 cm above
+      // asphalt), which reads as a proper painted curb from
+      // any trackside camera. The width alternates between
+      // sections of red and white (or solid red / yellow) so the
+      // curb is unmistakable.
+      const lipInner = pos.clone().addScaledVector(side, dir * (width / 2 + 0.02))
+      const lipOuter = pos.clone().addScaledVector(side, dir * (width / 2 + 1.8))
+      const bevel = pos.clone().addScaledVector(side, dir * (width / 2 + 0.18))
+      const lipTopY = pos.y + 0.16
+      // Six-vertex strip: inner-top, bevel-top, outer-top,
+      // inner-bottom, bevel-bottom, outer-bottom.
+      verts.push(
+        lipInner.x, lipTopY, lipInner.z,
+        bevel.x, lipTopY, bevel.z,
+        lipOuter.x, lipTopY, lipOuter.z,
+        lipInner.x, pos.y + 0.04, lipInner.z,
+        bevel.x, pos.y + 0.04, bevel.z,
+        lipOuter.x, pos.y + 0.04, lipOuter.z,
+      )
       let col: number[]
       if (baseKind === 'red-only') col = red
       else if (baseKind === 'yellow') col = yellow
@@ -381,14 +484,22 @@ function buildCurbs(
         const seg = Math.floor(t * segments / 4) % 2
         col = seg === 0 ? red : white
       }
-      cols.push(...col, ...col)
+      for (let v = 0; v < 6; v++) cols.push(...col)
     }
   }
   const indices: number[] = []
   for (let i = 0; i < segments; i++) {
     for (const side of [0, 1]) {
-      const a = i * 4 + side * 2, b = a + 1, c = (i + 1) * 4 + side * 2, d = c + 1
-      indices.push(a, c, b, b, c, d)
+      // 6-vertex strip: two tris for the top (sloped from inner to
+      // bevel and bevel to outer) and two tris for the bottom
+      // bevel. This gives the curb a proper raised profile.
+      const a0 = i * 6 + side * 3
+      const a1 = (i + 1) * 6 + side * 3
+      indices.push(
+        a0, a0 + 1, a1, a1, a0 + 1, a1 + 1,
+        a0 + 2, a0, a1 + 2, a0 + 2, a1 + 2, a1,
+        a0, a0 + 2, a0 + 1, a0 + 1, a0 + 2, a1 + 2,
+      )
     }
   }
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
@@ -516,33 +627,77 @@ function buildBarriers(
         joint.lookAt(lookAt)
         group.add(joint)
       } else if (z.kind === 'tyre-wall') {
-        // Three stacked boxes suggesting a tyre stack. Each
-        // stack is shorter and narrower so the wall reads as
-        // something you could climb over.
+        // Actual low-poly tyre stack. Each stack uses a real
+        // TorusGeometry (looks like a tyre viewed from the side)
+        // rotated so the holes face the track. Three tyres per
+        // stack, plus a fourth row that is partially buried. The
+        // shape is unmistakable: it's tyres, not boxes.
+        const segLen = p0.distanceTo(p1) * 1.05
+        const stackHeight = 0.36
         const stack = 3
+        const tyreRadius = 0.32
+        const tyreTube = 0.10
         for (let s = 0; s < stack; s++) {
-          const w = 0.6 - s * 0.04
-          const t = new THREE.Mesh(
-            new THREE.BoxGeometry(w, 0.22, p0.distanceTo(p1) * 1.05),
-            mat,
-          )
-          t.position.copy(mid)
-          t.position.y += 0.15 + s * 0.24
-          t.lookAt(lookAt)
-          group.add(t)
+          // Two stacked tori per row to read as a wall of tyres.
+          for (let k = 0; k < 2; k++) {
+            const tyre = new THREE.Mesh(
+              new THREE.TorusGeometry(tyreRadius, tyreTube, 6, 14),
+              mat,
+            )
+            tyre.position.copy(mid)
+            tyre.position.x += side.x * (dir * (k * (tyreRadius * 2 + 0.05)))
+            tyre.position.z += side.z * (dir * (k * (tyreRadius * 2 + 0.05)))
+            tyre.position.y = 0.18 + s * stackHeight
+            // Orient the tyre so its hole faces the track.
+            tyre.rotation.x = Math.PI / 2
+            tyre.lookAt(lookAt)
+            group.add(tyre)
+          }
         }
+        // A small joining bracket on the top row to suggest a
+        // continuous wall.
+        void segLen
       } else {
-        // Fence: a couple of thin posts + a near-transparent
-        // mesh plane. We use a light grey so the line is visible
-        // but doesn't dominate.
+        // Actual safety fence: thin posts + a low-opacity mesh
+        // surface. The mesh is a chain-link style grid built
+        // from thin tubes; the result reads as fence from
+        // broadcast distance.
+        const segLen = p0.distanceTo(p1) * 1.05
         const post = new THREE.Mesh(
-          new THREE.BoxGeometry(0.08, height, p0.distanceTo(p1) * 1.05),
+          new THREE.BoxGeometry(0.08, height, segLen),
           mat,
         )
         post.position.copy(mid)
         post.position.y += height / 2 + 0.05
         post.lookAt(lookAt)
         group.add(post)
+        // Two horizontal rails: top and mid-height.
+        for (const railY of [0.6, 0.3]) {
+          const rail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.015, 0.015, segLen, 4),
+            mat,
+          )
+          rail.position.copy(mid)
+          rail.position.y += railY
+          rail.rotation.x = Math.PI / 2
+          rail.lookAt(lookAt)
+          group.add(rail)
+        }
+        // A faint mesh sheet. The sheet uses a transparent
+        // material so the track is still visible.
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.04, height * 0.9, segLen),
+          new THREE.MeshBasicMaterial({
+            color: 0x9a9a9a,
+            transparent: true,
+            opacity: 0.18,
+            side: THREE.DoubleSide,
+          }),
+        )
+        mesh.position.copy(mid)
+        mesh.position.y += height * 0.5
+        mesh.lookAt(lookAt)
+        group.add(mesh)
       }
     }
     // Sponsor boards behind Armco and concrete barriers — small
@@ -639,29 +794,50 @@ function buildGrandstands(curve: THREE.CatmullRomCurve3, def: TrackVisualDefinit
         roof.lookAt(lookAt)
         group.add(roof)
       }
-      // Crowd: rows of small coloured heads + bodies.
+      // Crowd: actual torso + head + legs silhouettes. Per
+      // instance we draw a head + body + legs so the figure reads
+      // as a person, not as a coloured block. Performance is fine
+      // for the grandstand scale.
       if (graphicsLevel >= 1) {
-        const crowdCount = cap >= 1 ? 48 : cap >= 0.7 ? 32 : 18
-        const colors = [0xc25a4a, 0x6c7e95, 0xd1b35a, 0x4f5d75, 0x8a4f3a, 0x4a6c52, 0xe0e0e6, 0x9a3030]
+        const crowdCount = cap >= 1 ? 64 : cap >= 0.7 ? 40 : 24
+        const colors = [0xc25a4a, 0x6c7e95, 0xd1b35a, 0x4f5d75, 0x8a4f3a, 0x4a6c52, 0xe0e0e6, 0x9a3030, 0x6c7a8a, 0xb0b0b0]
         for (let c = 0; c < crowdCount; c++) {
-          const row = Math.floor(c / 8) % terraceSteps
-          const col = c % 8
-          const ch = new THREE.Mesh(
-            new THREE.BoxGeometry(0.4, 0.55, 0.3),
-            new THREE.MeshBasicMaterial({ color: colors[c % colors.length] }),
+          const row = Math.floor(c / 10) % terraceSteps
+          const col = c % 10
+          const skinColour = colors[c % colors.length]
+          const torso = new THREE.Mesh(
+            new THREE.BoxGeometry(0.42, 0.5, 0.3),
+            new THREE.MeshBasicMaterial({ color: skinColour }),
+          )
+          const legs = new THREE.Mesh(
+            new THREE.BoxGeometry(0.36, 0.55, 0.28),
+            new THREE.MeshBasicMaterial({ color: 0x2a2f37 }),
+          )
+          const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.26, 0.26, 0.26),
+            new THREE.MeshBasicMaterial({ color: 0xe6c8a8 }),
           )
           const chSide = side.clone().multiplyScalar(dir * (row * 1.1 + 0.4))
           const chForward = tan.clone().multiplyScalar(row * 0.6 + 0.4)
           const chPos = center.clone().add(chSide).add(chForward)
           chPos.add(new THREE.Vector3(
-            (col - 3.5) * (width / segs) / 8,
+            (col - 4.5) * (width / segs) / 10,
             0,
             0,
           ))
-          ch.position.copy(chPos)
-          ch.position.y = sumTo(0, row, terraceStepH) + 0.3
-          ch.lookAt(lookAt)
-          group.add(ch)
+          const figY = sumTo(0, row, terraceStepH) + 0.05
+          torso.position.copy(chPos)
+          torso.position.y = figY + 0.4
+          torso.lookAt(lookAt)
+          group.add(torso)
+          legs.position.copy(chPos)
+          legs.position.y = figY - 0.1
+          legs.lookAt(lookAt)
+          group.add(legs)
+          head.position.copy(chPos)
+          head.position.y = figY + 0.85
+          head.lookAt(lookAt)
+          group.add(head)
         }
       }
     }

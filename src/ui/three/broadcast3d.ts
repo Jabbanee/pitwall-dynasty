@@ -7,6 +7,7 @@ import { buildTrackWorld, type WorldVisual } from './environment'
 import { getTrackVisualDefinition } from './track-visual'
 import { TvDirector, type CameraMode, type DirectorEvent, type CarPositionSample } from './cameras'
 import { createCar, type CarVisual } from './car3d'
+import { applyLivery, getLiveryProfile } from './livery'
 import { TYRES } from '../../core/tyres'
 import { createCommentaryDisplay } from '../../media/commentary-display'
 import { assessCompliance } from '../../drivers/agency'
@@ -444,6 +445,20 @@ export function renderBroadcast3D(root: HTMLElement) {
         const visual = createCar({ colors, carNumber: car.carNumber, eraFactor: era })
         scene.add(visual.group)
         car3ds.set(car.driverId, { driverId: car.driverId, visual, lastLap: car.lap })
+        // Apply the team's stable livery profile. This drives the
+        // nose / sidepod / engine-cover accent panels, the
+        // sponsor header, and the abbreviated team mark. Profiles
+        // are deterministic per team.
+        const team = store.champ?.teams.find((t) => t.id === car.teamId)
+        if (team) {
+          const profile = getLiveryProfile({
+            id: team.id,
+            name: team.name,
+            shortName: team.shortName,
+            colors: team.colors,
+          })
+          applyLivery(visual, profile)
+        }
       }
     }
     for (const [driverId, c] of car3ds) {
@@ -825,9 +840,29 @@ export function renderBroadcast3D(root: HTMLElement) {
   const director = new TvDirector()
   let directorMode: CameraMode = 'director'
 
+  // FOV profiles per camera mode. Brief-prescribed starting
+  // ranges. Trackside and pit cameras are intentionally narrow
+  // (telephoto) so the cars feel compressed and fast; the
+  // helicopter is medium; onboard is wide so the trackside
+  // rushes toward the camera.
+  const CAMERA_FOV: Record<CameraMode, number> = {
+    director: 50,
+    helicopter: 52,
+    trackside: 32,
+    leader: 38,
+    battle: 46,
+    onboard: 74,
+    follow: 44,
+    'pit-lane': 40,
+  }
+
   function setCameraMode(mode: CameraMode) {
     directorMode = mode
     director.setManualMode(mode)
+    if (camera && CAMERA_FOV[mode] !== undefined) {
+      camera.fov = CAMERA_FOV[mode]
+      camera.updateProjectionMatrix()
+    }
   }
   // Tiny numeric helpers used by the pit-state mapper and the
   // crew animator. The broadcast's main file is too large to
