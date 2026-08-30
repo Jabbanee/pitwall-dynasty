@@ -844,9 +844,14 @@ export function renderBroadcast3D(root: HTMLElement) {
 
   // DEV-only visual QA harness. A headless test can call
   // `window.__pitwallVisualQA.load({...})` to deterministically
-  // configure the broadcast: speed, follow car, weather, final
-  // lap, etc. The harness is compiled into every build but is a
-  // no-op unless `pitwall-dynasty.devProbe === '1'`.
+  // configure the broadcast: speed, follow car, weather, era,
+  // circuit, team, camera, race phase, pit state, final lap, etc.
+  // The harness is compiled into every build but is a no-op unless
+  // `localStorage.pitwall-dynasty.devProbe === '1'`.
+  type VisualQAScenario =
+    | 'GRID' | 'LIGHTS' | 'LIVE' | 'BATTLE' | 'OVERTAKE'
+    | 'PIT_ENTRY' | 'PIT_SERVICE' | 'PIT_EXIT'
+    | 'FINAL_LAP' | 'FINISH'
   type VisualQACfg = {
     speed?: number
     followDriverId?: string
@@ -855,7 +860,16 @@ export function renderBroadcast3D(root: HTMLElement) {
     finalLap?: boolean
     raceClock?: number
     leaderLap?: number
+    eraYear?: number
+    teamId?: string
+    weather?: 'dry' | 'lightRain' | 'heavyRain'
+    wetness?: number
+    graphicsPreset?: 'low' | 'medium' | 'high' | 'ultra'
+    racePhase?: VisualQAScenario
+    scenario?: VisualQAScenario
+    circuitId?: string
   }
+  let qaReady = false
   function applyVisualQACfg(cfg: VisualQACfg) {
     if (typeof window === 'undefined') return false
     const enabled = (() => { try { return localStorage.getItem('pitwall-dynasty.devProbe') === '1' } catch (_) { return false } })()
@@ -866,6 +880,15 @@ export function renderBroadcast3D(root: HTMLElement) {
       if (c) followDriverId = cfg.followDriverId
     }
     if (cfg.camera) setCameraMode(cfg.camera)
+    if (cfg.eraYear !== undefined && localEngine) {
+      const y = cfg.eraYear
+      const ef = y <= 1980 ? 0 : y <= 1990 ? 0.15 : y <= 2000 ? 0.35 : y <= 2010 ? 0.55 : y <= 2014 ? 0.7 : y <= 2021 ? 0.82 : 0.95
+      for (const car of (localEngine as unknown as { cars: { eraFactor: number }[] }).cars ?? []) car.eraFactor = ef
+    }
+    if (cfg.teamId && localEngine) {
+      const c = (localEngine.state.cars ?? []).find((x) => x.teamId === cfg.teamId)
+      if (c) followDriverId = c.driverId
+    }
     if (cfg.pitDriverId && localEngine) {
       const c = localEngine.state.cars!.find((x) => x.driverId === cfg.pitDriverId)
       if (c) {
@@ -873,9 +896,44 @@ export function renderBroadcast3D(root: HTMLElement) {
         for (let i = 0; i < 3; i++) localEngine.stepLap()
       }
     }
+    if (cfg.graphicsPreset) {
+      try { localStorage.setItem('pitwall-dynasty.settings', JSON.stringify({ graphicsQuality: cfg.graphicsPreset })) } catch (_) { /* ignore */ }
+    }
+    if (cfg.racePhase && localEngine) {
+      const offset = phaseOffset(cfg.racePhase)
+      if (offset !== null) {
+        const cur = localEngine.state.simTime
+        const target = Math.max(0, offset)
+        for (let i = 0; i < 20; i++) {
+          if (localEngine.state.simTime >= target) break
+          localEngine.frameAdvance(target - localEngine.state.simTime)
+        }
+        void cur
+      }
+    }
+    qaReady = true
     return true
   }
-  ;(wrap as unknown as { __visualQA?: { load: (cfg: VisualQACfg) => boolean; sample: () => { simTime: number; speed: number; speedMultiplier: number; leaderLap: number; lapFraction: number; paused: boolean } | null } }).__visualQA = {
+  function phaseOffset(p: VisualQAScenario): number | null {
+    if (p === 'GRID') return 0
+    if (p === 'LIGHTS') return 5
+    if (p === 'BATTLE') return 60
+    if (p === 'PIT_ENTRY') return 80
+    if (p === 'PIT_SERVICE') return 95
+    if (p === 'PIT_EXIT') return 105
+    if (p === 'OVERTAKE') return 70
+    if (p === 'FINAL_LAP') return 1800
+    if (p === 'FINISH') return 2200
+    return null
+  }
+  ;(wrap as unknown as {
+    __visualQA?: {
+      load: (cfg: VisualQACfg) => boolean
+      sample: () => { simTime: number; speed: number; speedMultiplier: number; leaderLap: number; lapFraction: number; paused: boolean } | null
+      ready: () => boolean
+      waitUntilReady: (timeoutMs?: number) => Promise<boolean>
+    }
+  }).__visualQA = {
     load: applyVisualQACfg,
     sample: () => {
       if (!localEngine) return null
@@ -888,6 +946,15 @@ export function renderBroadcast3D(root: HTMLElement) {
         lapFraction: car ? localEngine.lapFractionOf((localEngine.state.cars ?? []).find((x) => x.driverId === car.driverId) as never) : 0,
         paused,
       }
+    },
+    ready: () => qaReady,
+    waitUntilReady: async (timeoutMs = 5000) => {
+      const start = performance.now()
+      while (performance.now() - start < timeoutMs) {
+        if (qaReady) return true
+        await new Promise((r) => setTimeout(r, 50))
+      }
+      return qaReady
     },
   }
 
