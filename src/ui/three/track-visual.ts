@@ -369,7 +369,7 @@ function camerasForCircuit(circuitId: string, baseWidth: number, pitSide: 'left'
   for (let i = 0; i < slots.length; i++) {
     const f = slots[i]
     const side: 'left' | 'right' = i % 2 === 0 ? 'left' : 'right'
-    const lateral = 18 + ((i * 7 + hash01(circuitId + ':camL:' + i)) % 18)
+    const lateral = 18 + (1 + (i * 7 + hash01(circuitId + ':camL:' + i)) % 18)
     const height = 2 + (i % 3)
     cameras.push({
       id: `${circuitId}:c${i}`,

@@ -503,79 +503,145 @@ export function renderBroadcast3D(root: HTMLElement) {
   // low-poly silhouettes once and reuse them. The silhouettes
   // are positioned at the team's box on the pit centreline and
   // animated in / out based on the authoritative box fraction
-  // (0..1) supplied by the engine. The team colour drives the
-  // helmet / suit, so the player can tell at a glance which team
-  // is pitting.
+  // (0..1) supplied by the engine. The team colour comes
+  // directly from the championship's `Team.colors.primary` /
+  // `Team.colors.secondary` records so the player can tell at a
+  // glance which team is pitting. As a final fallback when no
+  // team is known we hash the team id to a stable palette entry.
   type CrewFigure = {
     group: THREE.Group
     homeY: number
     homeX: number
     homeZ: number
+    role: 'jack-fl' | 'jack-fr' | 'jack-rl' | 'jack-rr' | 'carrier-fl' | 'carrier-fr' | 'carrier-rl' | 'carrier-rr' | 'release'
     animating: boolean
     targetY: number
   }
   const crewByTeam = new Map<string, { figures: CrewFigure[]; created: boolean }>()
-  function teamCrewColor(teamId: string): number {
+  function resolveTeamColors(teamId: string): { primary: number; secondary: number } {
+    try {
+      const champ = store.champ
+      if (champ) {
+        const team = champ.teams.find((t) => t.id === teamId)
+        if (team) {
+          return {
+            primary: parseInt(team.colors.primary.replace('#', ''), 16) || 0xe63946,
+            secondary: parseInt(team.colors.secondary.replace('#', ''), 16) || 0x1c2230,
+          }
+        }
+      }
+    } catch (_) { /* fall through */ }
+    // Stable fallback palette if no team is registered yet.
+    const palette = [
+      0xe63946, 0x4a8fd1, 0x4ad17d, 0xe6a14a, 0xb0b0b0,
+      0x9b6dd1, 0xd1a14a, 0x4ad1c0, 0xd14a8c, 0x6c7a8a,
+    ]
     let h = 2166136261 >>> 0
     for (let i = 0; i < teamId.length; i++) {
       h ^= teamId.charCodeAt(i)
       h = Math.imul(h, 16777619) >>> 0
     }
-    // Stable mapping to one of the 10 team colours.
-    const palette = [
-      0xe63946, 0x4a8fd1, 0x4ad17d, 0xe6a14a, 0xb0b0b0,
-      0x9b6dd1, 0xd1a14a, 0x4ad1c0, 0xd14a8c, 0x6c7a8a,
-    ]
-    return palette[Math.abs(h) % palette.length]
+    const primary = palette[Math.abs(h) % palette.length]
+    const secondary = 0x101418
+    return { primary, secondary }
   }
-  function buildCrewFigure(suit: number): THREE.Group {
+  function buildCrewFigure(
+    suit: number,
+    accent: number,
+    role: 'jack' | 'carrier' | 'release',
+  ): THREE.Group {
     const g = new THREE.Group()
-    // Torso
-    const torso = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, 0.9, 0.3),
-      new THREE.MeshLambertMaterial({ color: suit }),
-    )
+    // Suit: torso + legs in team primary colour.
+    const suitMat = new THREE.MeshLambertMaterial({ color: suit })
+    const accentMat = new THREE.MeshLambertMaterial({ color: accent })
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, 0.3), suitMat)
     torso.position.y = 0.45
     g.add(torso)
-    // Head
+    // Legs
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.18), suitMat)
+    legL.position.set(-0.12, -0.32, 0)
+    g.add(legL)
+    const legR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.18), suitMat)
+    legR.position.set(0.12, -0.32, 0)
+    g.add(legR)
+    // Head + helmet
     const head = new THREE.Mesh(
       new THREE.BoxGeometry(0.32, 0.32, 0.32),
       new THREE.MeshLambertMaterial({ color: 0xe6e6e8 }),
     )
     head.position.y = 1.1
     g.add(head)
-    // Helmet stripe
     const stripe = new THREE.Mesh(
       new THREE.BoxGeometry(0.34, 0.06, 0.34),
-      new THREE.MeshBasicMaterial({ color: suit }),
+      accentMat,
     )
     stripe.position.y = 1.25
     g.add(stripe)
+    // Per-role cue so the silhouettes are visually distinct
+    // even at broadcast distance.
+    if (role === 'jack') {
+      // Jack bar: a horizontal bar the figure is holding.
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.06, 0.06),
+        new THREE.MeshLambertMaterial({ color: 0x1a1a1a }),
+      )
+      bar.position.y = 0.6
+      g.add(bar)
+    } else if (role === 'carrier') {
+      // Tyre the carrier is holding: an actual torus.
+      const tyre = new THREE.Mesh(
+        new THREE.TorusGeometry(0.22, 0.08, 6, 14),
+        new THREE.MeshLambertMaterial({ color: 0x12141a }),
+      )
+      tyre.position.set(0, 0.4, 0.35)
+      tyre.rotation.y = Math.PI / 2
+      g.add(tyre)
+    } else {
+      // Release figure: clipboard / lollipop cue.
+      const lollipop = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.32, 0.08),
+        accentMat,
+      )
+      lollipop.position.set(0, 1.45, 0)
+      g.add(lollipop)
+      const disc = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 0.04, 12),
+        accentMat,
+      )
+      disc.position.set(0, 1.65, 0)
+      g.add(disc)
+    }
     return g
   }
+
   function buildPitCrew(teamId: string): { figures: CrewFigure[] } {
     if (!track) return { figures: [] }
-    const suit = teamCrewColor(teamId)
+    const { primary: suit, secondary: accent } = resolveTeamColors(teamId)
     const positions: CrewFigure[] = []
-    // 4 crew around the car: front-jack, rear-jack, two tyre
-    // changers. We sample the pit centreline at the team's
-    // box position and place the figures on either side of it.
     const boxPos = new THREE.Vector3()
     track.pitBoxFor(teamId, boxPos)
-    // Make the crew members face the lane (rotate around y).
     const laneTangent = new THREE.Vector3()
     track.pitPositionAt(0.5, laneTangent)
     const laneDir = laneTangent.clone().sub(boxPos).setY(0).normalize()
     const angle = Math.atan2(laneDir.x, laneDir.z)
-    const offsets: Array<[number, number, number]> = [
-      [-1.0, 0, -0.6],   // front-left
-      [ 1.0, 0, -0.6],   // front-right
-      [-1.0, 0,  0.7],   // rear-left
-      [ 1.0, 0,  0.7],   // rear-right
+    // 4 wheel-nut positions: front-left / front-right /
+    // rear-left / rear-right. The role encodes which nut each
+    // figure is working.
+    const roles: Array<{ role: 'jack' | 'carrier' | 'release'; side: -1 | 1; z: number }> = [
+      { role: 'jack',     side: -1, z:  0.9 },
+      { role: 'jack',     side:  1, z:  0.9 },
+      { role: 'jack',     side: -1, z: -0.9 },
+      { role: 'jack',     side:  1, z: -0.9 },
+      { role: 'carrier', side: -1, z:  0.9 },
+      { role: 'carrier', side:  1, z:  0.9 },
+      { role: 'carrier', side: -1, z: -0.9 },
+      { role: 'carrier', side:  1, z: -0.9 },
+      { role: 'release', side:  1, z:  1.6 },
     ]
-    for (const [dx, _dy, dz] of offsets) {
-      const fig = buildCrewFigure(suit)
-      // Rotate offset into world frame.
+    for (const r of roles) {
+      const fig = buildCrewFigure(suit, accent, r.role)
+      const dx = r.side * 1.05
+      const dz = r.z
       const lx = dx * Math.cos(angle) - dz * Math.sin(angle)
       const lz = dx * Math.sin(angle) + dz * Math.cos(angle)
       fig.position.set(boxPos.x + lx, 0, boxPos.z + lz)
@@ -583,11 +649,25 @@ export function renderBroadcast3D(root: HTMLElement) {
       const homeY = 0
       const homeX = fig.position.x
       const homeZ = fig.position.z
-      // Start hidden underground — they animate up from the
-      // service pit during the box phase.
+      // Start hidden underground — they animate up during the
+      // box phase.
       fig.position.y = -2
       scene.add(fig)
-      positions.push({ group: fig, homeY, homeX, homeZ, animating: false, targetY: 0 })
+      let roleKey: CrewFigure['role']
+      if (r.role === 'jack') {
+        roleKey = r.side === -1 ? 'jack-fl' : 'jack-fr'
+      } else if (r.role === 'carrier') {
+        roleKey = r.side === -1 ? 'carrier-fl' : 'carrier-fr'
+      } else {
+        roleKey = 'release'
+      }
+      positions.push({
+        group: fig,
+        homeY, homeX, homeZ,
+        role: roleKey,
+        animating: false,
+        targetY: 0,
+      })
     }
     return { figures: positions }
   }
@@ -599,25 +679,21 @@ export function renderBroadcast3D(root: HTMLElement) {
       entry = { figures: built.figures, created: true }
       crewByTeam.set(teamId, entry)
     }
-    // 0 = hidden, 1 = fully visible. Smoothly approach the box.
+    const vis = clamp(boxFraction, 0, 1)
+    // The team-crew approach the box. We bias the carrier
+    // pose so the figures lean toward the car centreline as
+    // the box phase progresses.
     for (const f of entry.figures) {
-      const vis = clamp(boxFraction, 0, 1)
-      // Crew appears as the box phase starts and clears when
-      // the box phase ends. Use a smooth ramp.
-      const targetY = vis * 0.6
-      f.group.position.y = f.homeY + targetY
-      // Slight body sway to suggest "working on the car".
+      const isCarrier = f.role.startsWith('carrier') || f.role === 'release'
+      const pose = isCarrier ? 0.7 : 0.6
+      f.group.position.y = f.homeY + vis * pose
       f.group.rotation.z = Math.sin(performance.now() * 0.012 + f.homeX) * 0.08 * vis
     }
   }
-  // Drive the crew animation every frame so the body sway
-  // continues smoothly even when no car is pitting this team.
   function tickPitCrewAnimation() {
     const t = performance.now()
     for (const entry of crewByTeam.values()) {
       for (const f of entry.figures) {
-        // Sway based on the figure's home position. We use the
-        // current y position as the amplitude proxy.
         const vis = clamp(f.group.position.y / 0.6, 0, 1)
         if (vis > 0.01) {
           f.group.rotation.z = Math.sin(t * 0.012 + f.homeX) * 0.08 * vis
