@@ -10,8 +10,7 @@ import { MultiplayerLobby } from '../src/server/multiplayer-server'
  */
 describe('multiplayer deterministic 10x', () => {
   it('produces an identical finishing order across 10 runs', { timeout: 60000 }, () => {
-    const reference: string | null = null
-    let refResults: Array<{ driverId: string; position: number }> | null = null
+    let refOrdered: string | null = null
 
     for (let run = 0; run < 10; run++) {
       const lobby = new MultiplayerLobby('host', { seed: 0x5eed })
@@ -27,22 +26,17 @@ describe('multiplayer deterministic 10x', () => {
       }
       const results = lobby.roundResults
       if (!results) throw new Error(`run ${run}: no roundResults yet (phase=${lobby.phase})`)
-      const ordered = (results as Array<{ driverId: string; finishPosition: number }>)
+      const ordered = results
         .slice()
         .sort((a, b) => a.finishPosition - b.finishPosition)
         .map((r) => `${r.driverId}:${r.finishPosition}`)
         .join(',')
 
-      if (refResults == null) {
-        refResults = results as Array<{ driverId: string; position: number }>
+      if (refOrdered == null) {
+        refOrdered = ordered
         continue
       }
-      const refOrdered = (refResults as unknown as Array<{ driverId: string; finishPosition: number }>)
-        .slice()
-        .sort((a, b) => a.finishPosition - b.finishPosition)
-        .map((r) => `${r.driverId}:${r.finishPosition}`)
-        .join(',')
       expect(ordered).toBe(refOrdered)
     }
-  }, { timeout: 60000 })
+  })
 })

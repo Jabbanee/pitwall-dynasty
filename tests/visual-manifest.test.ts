@@ -105,14 +105,6 @@ const REQUIRED_FILES: string[] = [
   '75-packaged-pitstop.png',
 ]
 
-// Files in the same folder that are not part of the 75-shot
-// manifest but are produced by the capture pipeline (smoke and
-// comparison images). They must NOT be tracked by the manifest
-// verifier.
-const OPTIONAL_FILES: string[] = [
-  '_smoke.png',
-]
-
 describe('visual screenshot manifest', () => {
   it('the manifest declares 75 entries', () => {
     expect(REQUIRED_FILES.length).toBe(75)

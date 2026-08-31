@@ -971,11 +971,11 @@ export function renderBroadcast3D(root: HTMLElement) {
       paused = true
       // also clear finished-flag if present
       try {
-        for (const c of localEngine.state.cars ?? []) {
-          (c as unknown as { finished?: boolean }).finished = false
-          (c as unknown as { lapsDone?: number }).lapsDone = 0
-          ;(c as unknown as { totalTime?: number }).totalTime = 0
-          ;(c as unknown as { lapStartTime?: number }).lapStartTime = 0
+        for (const c of (localEngine.state.cars ?? []) as Array<Record<string, unknown>>) {
+          c['finished'] = false
+          c['lapsDone'] = 0
+          c['totalTime'] = 0
+          c['lapStartTime'] = 0
         }
       } catch (_) { /* ignore */ }
       // Clear any lingering banner text / opacity.
