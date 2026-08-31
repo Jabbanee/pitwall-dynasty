@@ -16,3 +16,5 @@ server.log
 server.out
 server.err
 twoclient.log
+
+packaged-running.png
