@@ -186,6 +186,7 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('FAIL:', e.message)
+  console.error('FAIL:', e && e.message)
+  console.error('STACK:', e && e.stack)
   process.exit(1)
 })

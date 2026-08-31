@@ -961,15 +961,33 @@ export function renderBroadcast3D(root: HTMLElement) {
     if (p === 'FINISH') return 2200
     return null
   }
-  ;(wrap as unknown as {
-    __visualQA?: {
-      load: (cfg: VisualQACfg) => boolean
-      sample: () => { simTime: number; speed: number; speedMultiplier: number; leaderLap: number; lapFraction: number; paused: boolean } | null
-      ready: () => boolean
-      waitUntilReady: (timeoutMs?: number) => Promise<boolean>
-    }
-  }).__visualQA = {
+  const qaApi = {
     load: applyVisualQACfg,
+    // Reset the engine to time 0 so capture scripts get a fresh race.
+    reset: () => {
+      if (!localEngine) return false
+      localEngine.state.simTime = 0
+      localEngine.state.leaderLap = 0
+      paused = true
+      // also clear finished-flag if present
+      try {
+        for (const c of localEngine.state.cars ?? []) {
+          (c as unknown as { finished?: boolean }).finished = false
+          (c as unknown as { lapsDone?: number }).lapsDone = 0
+          ;(c as unknown as { totalTime?: number }).totalTime = 0
+          ;(c as unknown as { lapStartTime?: number }).lapStartTime = 0
+        }
+      } catch (_) { /* ignore */ }
+      // Clear any lingering banner text / opacity.
+      try {
+        eventBanner.style.opacity = '0'
+        eventBanner.textContent = ''
+      } catch (_) { /* ignore */ }
+      qaReady = true
+      return true
+    },
+    pause: () => { paused = true; return true },
+    resume: () => { paused = false; return true },
     sample: () => {
       if (!localEngine) return null
       const car = car3ds.values().next().value
@@ -992,6 +1010,10 @@ export function renderBroadcast3D(root: HTMLElement) {
       return qaReady
     },
   }
+  ;(wrap as unknown as { __visualQA?: typeof qaApi }).__visualQA = qaApi
+  // Mirror onto window so the QA capture script (Playwright) can
+  // drive the harness without traversing into the wrap DOM.
+  ;(window as unknown as { __pitwallVisualQA?: typeof qaApi }).__pitwallVisualQA = qaApi
 
   function graphicsLevelFromSettings(): 0 | 1 | 2 | 3 {
     try {

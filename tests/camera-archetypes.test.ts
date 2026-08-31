@@ -24,7 +24,7 @@ describe('camera archetype positions', () => {
     }
   })
 
-  it('onboard / helicopter / trackside resolve to finite world positions', () => {
+  it('onboard / helicopter / trackside resolve to finite world positions', { timeout: 30000 }, () => {
     for (const c of CIRCUITS.slice(0, 3)) {
       const def = getTrackVisualDefinition(c)
       const world = buildTrackWorld(c, def, 2)

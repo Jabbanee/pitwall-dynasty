@@ -11,3 +11,8 @@ scripts/temp-*
 .temp
 dist-electron/
 release/
+capture.log
+server.log
+server.out
+server.err
+twoclient.log
