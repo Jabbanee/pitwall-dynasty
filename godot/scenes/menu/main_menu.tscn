@@ -1,0 +1,110 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/menu/main_menu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.03, 0.03, 0.05, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 120.0
+offset_right = 400.0
+offset_bottom = 220.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 72
+text = "PITWALL DYNASTY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 230.0
+offset_right = 300.0
+offset_bottom = 280.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 24
+text = "Motorsport Team Management"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="Buttons" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 350.0
+offset_right = 200.0
+offset_bottom = 750.0
+grow_horizontal = 2
+theme_override_constants/separation = 16
+
+[node name="QuickStart" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Quick Start"
+
+[node name="FastChampionship" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Fast Championship"
+
+[node name="Multiplayer" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Multiplayer"
+
+[node name="SoloCareer" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Solo Career"
+
+[node name="Settings" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Settings"
+
+[node name="Exit" type="Button" parent="Buttons"]
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 1
+text = "Exit"
+
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -40.0
+offset_right = 200.0
+offset_bottom = -10.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "v0.1.0"
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)

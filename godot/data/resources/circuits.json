@@ -1,0 +1,26 @@
+{
+	"circuit_forest_01": {
+		"id": "circuit_forest_01",
+		"name": "Pine Ridge Circuit",
+		"theme": "FOREST",
+		"length_km": 4.2,
+		"corners": 14,
+		"elevation_change": 32
+	},
+	"circuit_mountain_01": {
+		"id": "circuit_mountain_01",
+		"name": "Summit Grand Prix",
+		"theme": "MOUNTAIN",
+		"length_km": 5.1,
+		"corners": 18,
+		"elevation_change": 65
+	},
+	"circuit_coastal_01": {
+		"id": "circuit_coastal_01",
+		"name": "Harbor Bay Circuit",
+		"theme": "COASTAL",
+		"length_km": 3.8,
+		"corners": 12,
+		"elevation_change": 8
+	}
+}

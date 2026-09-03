@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "godot": {
+      "transport": "stdio",
+      "enabled": true,
+      "command": "node",
+      "args": ["C:\\Users\\Janne\\AppData\\Roaming\\npm\\node_modules\\godot-mcp\\build\\index.js"],
+      "env": {
+        "GODOT_PATH": "D:\\BaneWorks\\Tools\\Godot43\\Godot_v4.3-stable_win64.exe"
+      }
+    }
+  }
+}

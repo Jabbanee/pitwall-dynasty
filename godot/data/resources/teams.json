@@ -1,0 +1,32 @@
+{
+	"team_00": {
+		"id": "team_00",
+		"name": "Aquila Racing",
+		"color": "#E63333",
+		"founded": 2015
+	},
+	"team_01": {
+		"id": "team_01",
+		"name": "Boreal Motorsport",
+		"color": "#3399E6",
+		"founded": 2018
+	},
+	"team_02": {
+		"id": "team_02",
+		"name": "Kestrel GP",
+		"color": "#E6B31A",
+		"founded": 2012
+	},
+	"team_03": {
+		"id": "team_03",
+		"name": "Meridian Racing",
+		"color": "#4DCC66",
+		"founded": 2020
+	},
+	"team_04": {
+		"id": "team_04",
+		"name": "Titan Racing",
+		"color": "#B34DE6",
+		"founded": 2016
+	}
+}
