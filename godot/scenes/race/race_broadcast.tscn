@@ -1,27 +1,31 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/race/race_broadcast.gd" id="1_race"]
+[ext_resource type="Script" path="res://scripts/race/race_hud.gd" id="2_hud"]
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_track"]
-size = Vector2(200, 200)
-
-[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
-albedo_color = Color(0.15, 0.15, 0.15, 1)
-roughness = 0.8
+[sub_resource type="Environment" id="Environment_sky"]
+background_mode = 2
+ambient_light_color = Color(0.4, 0.45, 0.5, 1)
+ambient_light_energy = 0.4
+sky_energy_multiplier = 0.5
 
 [node name="RaceBroadcast" type="Node3D"]
 script = ExtResource("1_race")
 
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sky")
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 50, 80, 50)
-light_energy = 1.2
+light_energy = 1.5
 shadow_enabled = true
+shadow_bias = 0.05
+directional_shadow_split_1 = 0.1
+directional_shadow_split_2 = 0.2
+directional_shadow_split_3 = 0.4
+directional_shadow_max_distance = 150.0
 
 [node name="CircuitRoot" type="Node3D" parent="."]
-
-[node name="TrackSurface" type="MeshInstance3D" parent="CircuitRoot"]
-mesh = SubResource("PlaneMesh_track")
-material_override = SubResource("Material_asphalt")
 
 [node name="EnvironmentRoot" type="Node3D" parent="."]
 
@@ -34,6 +38,7 @@ material_override = SubResource("Material_asphalt")
 [node name="Camera3D" type="Camera3D" parent="CameraRig"]
 transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 0, 25, 80)
 fov = 50.0
+far = 500.0
 
 [node name="HUD" type="Control" parent="."]
 layout_mode = 1
@@ -43,13 +48,26 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+script = ExtResource("2_hud")
 
-[node name="TimingTower" type="VBoxContainer" parent="HUD"]
+[node name="TimingTowerPanel" type="Panel" parent="HUD"]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 80.0
 offset_right = 320.0
 offset_bottom = 600.0
+
+[node name="TimingTower" type="VBoxContainer" parent="HUD/TimingTowerPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="StrategyPanel" type="Panel" parent="HUD"]
 layout_mode = 1
@@ -79,3 +97,29 @@ offset_bottom = 70.0
 grow_horizontal = 1
 theme_override_font_sizes/font_size = 32
 text = "LIVE RACE"
+
+[node name="LapLabel" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 20.0
+offset_top = 70.0
+offset_right = 200.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 18
+text = "Lap 1/10"
+
+[node name="ControlsHint" type="Label" parent="HUD"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -80.0
+offset_right = 400.0
+offset_bottom = -20.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 14
+text = "SPACE: Pause | ESC: Menu"

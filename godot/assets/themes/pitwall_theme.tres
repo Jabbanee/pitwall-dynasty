@@ -1,0 +1,70 @@
+[gd_resource type="Theme" format=3]
+
+[resource]
+default_font_size = 16
+
+# Colors
+colors/background = Color(0.03, 0.03, 0.05, 1)
+colors/panel = Color(0.08, 0.08, 0.12, 1)
+colors/accent = Color(0.9, 0.2, 0.2, 1)
+colors/accent_hover = Color(1.0, 0.3, 0.3, 1)
+colors/text_primary = Color(0.95, 0.95, 0.95, 1)
+colors/text_secondary = Color(0.7, 0.7, 0.7, 1)
+colors/text_disabled = Color(0.4, 0.4, 0.4, 1)
+colors/border = Color(0.2, 0.2, 0.25, 1)
+colors/success = Color(0.3, 0.8, 0.4, 1)
+colors/warning = Color(0.9, 0.7, 0.1, 1)
+colors/danger = Color(0.9, 0.2, 0.2, 1)
+
+# Button styles
+styles/button_normal = {
+	"bg_color": Color(0.12, 0.12, 0.18, 1),
+	"border_color": Color(0.2, 0.2, 0.25, 1),
+	"border_width": 1,
+	"corner_radius": 4
+}
+styles/button_hover = {
+	"bg_color": Color(0.18, 0.18, 0.25, 1),
+	"border_color": Color(0.9, 0.2, 0.2, 1),
+	"border_width": 1,
+	"corner_radius": 4
+}
+styles/button_pressed = {
+	"bg_color": Color(0.9, 0.2, 0.2, 1),
+	"border_color": Color(1.0, 0.3, 0.3, 1),
+	"border_width": 1,
+	"corner_radius": 4
+}
+styles/button_focus = {
+	"bg_color": Color(0.15, 0.15, 0.22, 1),
+	"border_color": Color(0.9, 0.2, 0.2, 1),
+	"border_width": 2,
+	"corner_radius": 4
+}
+styles/button_disabled = {
+	"bg_color": Color(0.06, 0.06, 0.08, 1),
+	"border_color": Color(0.1, 0.1, 0.12, 1),
+	"border_width": 1,
+	"corner_radius": 4
+}
+
+# Panel styles
+styles/panel = {
+	"bg_color": Color(0.08, 0.08, 0.12, 1),
+	"border_color": Color(0.2, 0.2, 0.25, 1),
+	"border_width": 1,
+	"corner_radius": 6
+}
+
+# Label styles
+styles/label = {
+	"font_color": Color(0.95, 0.95, 0.95, 1)
+}
+styles/title = {
+	"font_color": Color(0.95, 0.95, 0.95, 1),
+	"font_size": 48
+}
+styles/subtitle = {
+	"font_color": Color(0.7, 0.7, 0.7, 1),
+	"font_size": 24
+}
