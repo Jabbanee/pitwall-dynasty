@@ -2,6 +2,7 @@ extends Node3D
 
 var CameraSystem = preload("res://scripts/race/camera_system.gd")
 var BroadcastDirector = preload("res://scripts/race/broadcast_director.gd")
+var TrackGenerator = preload("res://scripts/race/track_generator.gd")
 
 @onready var circuit_root: Node3D = $CircuitRoot
 @onready var cars_root: Node3D = $CarsRoot
@@ -16,6 +17,8 @@ var _presentation_time: float = 0.0
 var _track_radius: float = 50.0
 var _camera_system = null
 var _director = null
+var _current_circuit_data: Dictionary = {}
+var _centerline: PackedVector3Array = PackedVector3Array()
 
 func _ready() -> void:
 	print("RaceBroadcast: Initializing")
@@ -27,19 +30,63 @@ func _ready() -> void:
 	print("RaceBroadcast: Ready with %d cars" % _cars.size())
 
 func _setup_track() -> void:
-	# Build track surface
+	# Load circuit data from JSON
+	var circuits_data := _load_circuits_data()
+	if circuits_data.size() == 0:
+		print("No circuit data found, falling back to procedural oval")
+		_setup_procedural_track()
+		return
+	
+	# Use first circuit for now (Velocita Park)
+	var circuit_data = circuits_data[0]
+	_current_circuit_data = circuit_data
+	
+	# Calculate track radius from circuit length
+	var length_km = circuit_data.characteristics.lengthKm
+	_track_radius = length_km * 20.0  # Approximate radius from circumference
+	
+	# Generate centerline using TrackGenerator
+	var centerline = TrackGenerator.generate_centerline(circuit_data, 96)
+	
+	# Build track surface from centerline
+	var track_surface := _build_track_from_centerline(centerline)
+	circuit_root.add_child(track_surface)
+	
+	# Build curbs
+	var curbs := _build_curbs_from_centerline(centerline)
+	circuit_root.add_child(curbs)
+	
+	# Build barriers
+	var barriers := _build_barriers_from_centerline(centerline)
+	circuit_root.add_child(barriers)
+	
+	# Build environment based on theme
+	var theme = circuit_data.get("theme", "FOREST")
+	_build_environment(theme)
+
+func _load_circuits_data() -> Array:
+	var file := FileAccess.open("res://data/resources/track_data.json", FileAccess.READ)
+	if not file:
+		print("Could not open track_data.json")
+		return []
+	var text := file.get_as_text()
+	file.close()
+	var json := JSON.new()
+	var err := json.parse(text)
+	if err != OK:
+		print("Error parsing track_data.json")
+		return []
+	var data = json.data
+	return data.get("circuits", [])
+
+func _setup_procedural_track() -> void:
+	# Fallback procedural oval (original implementation)
 	var track_surface := _build_track_surface()
 	circuit_root.add_child(track_surface)
-
-	# Build curbs
 	var curbs := _build_curbs()
 	circuit_root.add_child(curbs)
-
-	# Build barriers
 	var barriers := _build_barriers()
 	circuit_root.add_child(barriers)
-
-	# Build grass
 	var grass := _build_grass()
 	add_child(grass)
 
@@ -422,3 +469,120 @@ func _input(event: InputEvent) -> void:
 		_camera_system.next_camera()
 	elif event.is_action_pressed("camera_previous"):
 		_camera_system.previous_camera()
+
+# Real circuit track generation helpers
+
+func _build_track_from_centerline(centerline: PackedVector3Array) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hw := 6.0
+	var n := centerline.size()
+	for i in range(n):
+		var curr = centerline[i]
+		var next_p = centerline[(i + 1) % n]
+		var tangent = (next_p - curr).normalized()
+		var normal = Vector3(-tangent.z, 0, tangent.x)
+		var p1 = curr + normal * hw
+		var p2 = curr - normal * hw
+		var p3 = next_p - normal * hw
+		var p4 = next_p + normal * hw
+		st.add_vertex(p1)
+		st.add_vertex(p2)
+		st.add_vertex(p3)
+		st.add_vertex(p1)
+		st.add_vertex(p3)
+		st.add_vertex(p4)
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.15, 0.15, 0.15)
+	mat.roughness = 0.85
+	st.set_material(mat)
+	st.index()
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	mesh.name = "TrackSurface"
+	return mesh
+
+func _build_curbs_from_centerline(centerline: PackedVector3Array) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cw := 1.5
+	var n := centerline.size()
+	for i in range(0, n, 6):
+		var curr = centerline[i]
+		var next_p = centerline[(i + 1) % n]
+		var tangent = (next_p - curr).normalized()
+		var normal = Vector3(-tangent.z, 0, tangent.x)
+		var inner = curr - normal * 6.0
+		var outer = curr - normal * (6.0 + cw)
+		var ni = next_p - normal * 6.0
+		var no = next_p - normal * (6.0 + cw)
+		st.add_vertex(inner)
+		st.add_vertex(outer)
+		st.add_vertex(ni)
+		st.add_vertex(outer)
+		st.add_vertex(no)
+		st.add_vertex(ni)
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.9, 0.2, 0.2)
+	mat.roughness = 0.6
+	st.set_material(mat)
+	st.index()
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	mesh.name = "Curbs"
+	mesh.position = Vector3(0, 0.05, 0)
+	return mesh
+
+func _build_barriers_from_centerline(centerline: PackedVector3Array) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var bo := 16.0
+	var bh := 1.2
+	var n := centerline.size()
+	for i in range(0, n, 2):
+		var curr = centerline[i]
+		var next_p = centerline[(i + 1) % n]
+		var tangent = (next_p - curr).normalized()
+		var normal = Vector3(-tangent.z, 0, tangent.x)
+		var base = curr + normal * bo
+		var top = base + Vector3(0, bh, 0)
+		var nb = next_p + normal * bo
+		var nt = nb + Vector3(0, bh, 0)
+		st.add_vertex(base)
+		st.add_vertex(top)
+		st.add_vertex(nb)
+		st.add_vertex(top)
+		st.add_vertex(nt)
+		st.add_vertex(nb)
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.7, 0.7, 0.7)
+	mat.roughness = 0.7
+	st.set_material(mat)
+	st.index()
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	mesh.name = "Barriers"
+	return mesh
+
+func _build_environment(theme: String) -> void:
+	var ground := MeshInstance3D.new()
+	var gm := PlaneMesh.new()
+	gm.size = Vector2(800, 800)
+	ground.mesh = gm
+	ground.position = Vector3(0, -0.1, 0)
+	var mat := StandardMaterial3D.new()
+	match theme:
+		"FOREST": mat.albedo_color = Color(0.12, 0.2, 0.1)
+		"MOUNTAIN": mat.albedo_color = Color(0.2, 0.18, 0.15)
+		"COASTAL": mat.albedo_color = Color(0.15, 0.18, 0.2)
+		"DESERT": mat.albedo_color = Color(0.6, 0.5, 0.3)
+		"URBAN": mat.albedo_color = Color(0.15, 0.15, 0.18)
+		"MODERN": mat.albedo_color = Color(0.12, 0.15, 0.12)
+		_: mat.albedo_color = Color(0.12, 0.2, 0.1)
+	mat.roughness = 0.95
+	ground.material_override = mat
+	ground.name = "Ground"
+	add_child(ground)

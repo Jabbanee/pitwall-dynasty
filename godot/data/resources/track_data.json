@@ -1,0 +1,130 @@
+{
+	"circuits": [
+		{
+			"id": "base.circuit.velocita",
+			"name": "Velocita Park",
+			"country": "Italy",
+			"theme": "MODERN",
+			"characteristics": {
+				"lengthKm": 4.9,
+				"lowSpeed": 30,
+				"mediumSpeed": 45,
+				"highSpeed": 65,
+				"straightLine": 80,
+				"overtakingDifficulty": 35,
+				"tyreStress": 55,
+				"brakingStress": 70,
+				"rainProbability": 0.15,
+				"pitLossSeconds": 21,
+				"safetyCarProbability": 0.18,
+				"trackEvolution": 0.5
+			},
+			"elevationAmplitude": 12.0
+		},
+		{
+			"id": "base.circuit.harborfield",
+			"name": "Harborfield Street Circuit",
+			"country": "Australia",
+			"theme": "URBAN",
+			"characteristics": {
+				"lengthKm": 3.8,
+				"lowSpeed": 70,
+				"mediumSpeed": 50,
+				"highSpeed": 25,
+				"straightLine": 40,
+				"overtakingDifficulty": 75,
+				"tyreStress": 60,
+				"brakingStress": 75,
+				"rainProbability": 0.1,
+				"pitLossSeconds": 24,
+				"safetyCarProbability": 0.35,
+				"trackEvolution": 0.6
+			},
+			"elevationAmplitude": 8.0
+		},
+		{
+			"id": "base.circuit.silverpine",
+			"name": "Silverpine Raceway",
+			"country": "United Kingdom",
+			"theme": "FOREST",
+			"characteristics": {
+				"lengthKm": 5.1,
+				"lowSpeed": 35,
+				"mediumSpeed": 55,
+				"highSpeed": 55,
+				"straightLine": 60,
+				"overtakingDifficulty": 55,
+				"tyreStress": 50,
+				"brakingStress": 50,
+				"rainProbability": 0.35,
+				"pitLossSeconds": 20,
+				"safetyCarProbability": 0.15,
+				"trackEvolution": 0.7
+			},
+			"elevationAmplitude": 18.0
+		},
+		{
+			"id": "base.circuit.monteverde",
+			"name": "Monteverde Hills",
+			"country": "Brazil",
+			"theme": "MOUNTAIN",
+			"characteristics": {
+				"lengthKm": 4.3,
+				"lowSpeed": 60,
+				"mediumSpeed": 60,
+				"highSpeed": 30,
+				"straightLine": 50,
+				"overtakingDifficulty": 45,
+				"tyreStress": 70,
+				"brakingStress": 60,
+				"rainProbability": 0.4,
+				"pitLossSeconds": 22,
+				"safetyCarProbability": 0.2,
+				"trackEvolution": 0.4
+			},
+			"elevationAmplitude": 25.0
+		},
+		{
+			"id": "base.circuit.duneside",
+			"name": "Duneside International",
+			"country": "Bahrain-like Gulf",
+			"theme": "DESERT",
+			"characteristics": {
+				"lengthKm": 5.4,
+				"lowSpeed": 40,
+				"mediumSpeed": 50,
+				"highSpeed": 60,
+				"straightLine": 75,
+				"overtakingDifficulty": 30,
+				"tyreStress": 65,
+				"brakingStress": 65,
+				"rainProbability": 0.02,
+				"pitLossSeconds": 23,
+				"safetyCarProbability": 0.12,
+				"trackEvolution": 0.3
+			},
+			"elevationAmplitude": 5.0
+		},
+		{
+			"id": "base.circuit.kirinawa",
+			"name": "Kirinawa Speedring",
+			"country": "Japan",
+			"theme": "MODERN",
+			"characteristics": {
+				"lengthKm": 5.8,
+				"lowSpeed": 30,
+				"mediumSpeed": 60,
+				"highSpeed": 70,
+				"straightLine": 65,
+				"overtakingDifficulty": 60,
+				"tyreStress": 55,
+				"brakingStress": 45,
+				"rainProbability": 0.3,
+				"pitLossSeconds": 21,
+				"safetyCarProbability": 0.1,
+				"trackEvolution": 0.8
+			},
+			"elevationAmplitude": 10.0
+		}
+	]
+}
