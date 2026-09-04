@@ -1,5 +1,8 @@
 extends Node3D
 
+var CameraSystem = preload("res://scripts/race/camera_system.gd")
+var BroadcastDirector = preload("res://scripts/race/broadcast_director.gd")
+
 @onready var circuit_root: Node3D = $CircuitRoot
 @onready var cars_root: Node3D = $CarsRoot
 @onready var camera_rig: Node3D = $CameraRig
@@ -11,11 +14,14 @@ var _race_data: Dictionary = {}
 var _is_race_active: bool = false
 var _presentation_time: float = 0.0
 var _track_radius: float = 50.0
-var _camera_system: Node3D = null
+var _camera_system = null
+var _director = null
 
 func _ready() -> void:
 	print("RaceBroadcast: Initializing")
 	_setup_track()
+	_setup_camera_system()
+	_setup_director()
 	_setup_default_race()
 	_spawn_cars()
 	print("RaceBroadcast: Ready with %d cars" % _cars.size())
@@ -189,6 +195,21 @@ func _build_grass() -> MeshInstance3D:
 	mesh.name = "Grass"
 	return mesh
 
+func _setup_camera_system() -> void:
+	_camera_system = CameraSystem.new()
+	add_child(_camera_system)
+	_camera_system.setup(Vector3.ZERO, _track_radius, _cars)
+
+func _setup_director() -> void:
+	_director = BroadcastDirector.new()
+	add_child(_director)
+	_director.setup(_camera_system)
+	_director.camera_suggested.connect(_on_camera_suggested)
+
+func _on_camera_suggested(camera_type: int) -> void:
+	if _camera_system:
+		_camera_system.set_camera_type(camera_type)
+
 func _setup_default_race() -> void:
 	_race_data = {
 		"race_id": "fixture_race_001",
@@ -238,6 +259,10 @@ func _spawn_cars() -> void:
 		_cars.append({"data": car_data, "visual": car_visual})
 		_car_visuals[car_data.id] = car_visual
 		cars_root.add_child(car_visual)
+	
+	# Update camera system with cars
+	if _camera_system:
+		_camera_system._cars = _cars
 
 func _create_car_visual(car_data: Dictionary) -> Node3D:
 	var container := Node3D.new()
@@ -306,7 +331,7 @@ func _create_car_visual(car_data: Dictionary) -> Node3D:
 	container.add_child(halo)
 
 	# Wheels
-	_create_wheels(container, color)
+	_create_wheels(container)
 
 	# Position the car
 	var angle: float = car_data.angle
@@ -316,7 +341,7 @@ func _create_car_visual(car_data: Dictionary) -> Node3D:
 
 	return container
 
-func _create_wheels(parent: Node3D, _color: Color) -> void:
+func _create_wheels(parent: Node3D) -> void:
 	var wheel_positions := [
 		Vector3(-0.7, 0.15, 1.2),
 		Vector3(0.7, 0.15, 1.2),
@@ -346,7 +371,8 @@ func _process(delta: float) -> void:
 		return
 	_presentation_time += delta
 	_update_car_positions(delta)
-	_update_camera(delta)
+	_camera_system._process(delta)
+	_director.update(delta)
 
 func _update_car_positions(delta: float) -> void:
 	for car_entry in _cars:
@@ -370,37 +396,9 @@ func _update_car_positions(delta: float) -> void:
 		visual.position = new_pos
 		visual.rotation.y = angle + PI / 2.0
 
-func _update_camera(delta: float) -> void:
-	# Find camera in scene
-	var camera := _find_camera()
-	if not camera:
-		return
-
-	_presentation_time += delta * 0.15
-	var cam_angle: float = _presentation_time * 0.2
-	camera.position = Vector3(
-		sin(cam_angle) * 80.0,
-		25.0,
-		cos(cam_angle) * 80.0
-	)
-	camera.look_at(Vector3(0, 0, 0), Vector3(0, 1, 0))
-
-func _find_camera() -> Camera3D:
-	# Look for camera in scene tree
-	var root := get_tree().root
-	return _find_camera_recursive(root)
-
-func _find_camera_recursive(node: Node) -> Camera3D:
-	if node is Camera3D and node.current:
-		return node
-	for child in node.get_children():
-		var result := _find_camera_recursive(child)
-		if result:
-			return result
-	return null
-
 func start_race() -> void:
 	_is_race_active = true
+	_director.process_event(BroadcastDirector.EventType.START)
 	print("Race started")
 
 func pause_race() -> void:
@@ -409,6 +407,7 @@ func pause_race() -> void:
 
 func stop_race() -> void:
 	_is_race_active = false
+	_director.process_event(BroadcastDirector.EventType.FINISH)
 	print("Race stopped")
 
 func _input(event: InputEvent) -> void:
@@ -419,3 +418,7 @@ func _input(event: InputEvent) -> void:
 			pause_race()
 		else:
 			start_race()
+	elif event.is_action_pressed("camera_next"):
+		_camera_system.next_camera()
+	elif event.is_action_pressed("camera_previous"):
+		_camera_system.previous_camera()
