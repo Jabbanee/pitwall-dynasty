@@ -112,3 +112,8 @@ anti_aliasing/quality/msaa_2d=1
 anti_aliasing/quality/msaa_4d=0
 rendering/draw_order=0
 rendering/renderer/rendering_method="forward_plus"
+
+[filesystem]
+
+import/blender/blender_path="C:/Program Files/Blender Foundation/Blender 4.5/blender.exe"
+import/blender/enabled=true
