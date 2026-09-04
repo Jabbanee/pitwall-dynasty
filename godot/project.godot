@@ -27,6 +27,8 @@ ContentRegistry="*res://autoload/content_registry.gd"
 NetworkSession="*res://autoload/network_session.gd"
 SaveService="*res://autoload/save_service.gd"
 VisualQA="*res://autoload/visual_qa.gd"
+QACaptureHarness="*res://scripts/qa/qa_capture_harness.gd"
+ViewportCapture="*res://scripts/qa/viewport_capture.gd"
 
 [display]
 
@@ -117,3 +119,4 @@ rendering/renderer/rendering_method="forward_plus"
 
 import/blender/blender_path="C:/Program Files/Blender Foundation/Blender 4.5/blender.exe"
 import/blender/enabled=true
+
