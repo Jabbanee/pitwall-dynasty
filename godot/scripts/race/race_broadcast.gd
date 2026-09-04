@@ -312,12 +312,39 @@ func _spawn_cars() -> void:
 		_camera_system._cars = _cars
 
 func _create_car_visual(car_data: Dictionary) -> Node3D:
-	var container := Node3D.new()
+	# Load the formula car model
+	var car_scene = load("res://assets/models/formula_car.tscn")
+	var container: Node3D
+	
+	if car_scene:
+		container = car_scene.instantiate()
+	else:
+		# Fallback to procedural car if model not loaded
+		container = _create_procedural_car(car_data)
+	
 	container.name = car_data.id
+	
+	# Apply team color to body paint material
+	var color: Color = car_data.team_color
+	_apply_team_color(container, color)
+	
+	# Apply era-specific modifications
+	var era: String = car_data.get("era", "2022")
+	_apply_era_modifications(container, era)
+	
+	# Position the car
+	var angle: float = car_data.angle
+	var radius: float = car_data.radius
+	container.position = Vector3(cos(angle) * radius, 0, sin(angle) * radius)
+	container.rotation.y = angle + PI / 2.0
+	
+	return container
 
+func _create_procedural_car(car_data: Dictionary) -> Node3D:
+	"""Fallback procedural car if GLB model not available."""
+	var container := Node3D.new()
 	var color: Color = car_data.team_color
 
-	# Main chassis
 	var chassis := MeshInstance3D.new()
 	var chassis_mesh := BoxMesh.new()
 	chassis_mesh.size = Vector3(1.2, 0.35, 3.5)
@@ -331,62 +358,43 @@ func _create_car_visual(car_data: Dictionary) -> Node3D:
 	chassis.material_override = chassis_material
 	container.add_child(chassis)
 
-	# Cockpit
-	var cockpit := MeshInstance3D.new()
-	var cockpit_mesh := BoxMesh.new()
-	cockpit_mesh.size = Vector3(0.5, 0.3, 0.8)
-	cockpit.mesh = cockpit_mesh
-	cockpit.position = Vector3(0, 0.45, -0.5)
-
-	var cockpit_material := StandardMaterial3D.new()
-	cockpit_material.albedo_color = Color(0.1, 0.1, 0.1)
-	cockpit.material_override = cockpit_material
-	container.add_child(cockpit)
-
-	# Front wing
-	var front_wing := MeshInstance3D.new()
-	var fw_mesh := BoxMesh.new()
-	fw_mesh.size = Vector3(1.8, 0.05, 0.4)
-	front_wing.mesh = fw_mesh
-	front_wing.position = Vector3(0, 0.1, 1.8)
-	front_wing.material_override = chassis_material
-	container.add_child(front_wing)
-
-	# Rear wing
-	var rear_wing := MeshInstance3D.new()
-	var rw_mesh := BoxMesh.new()
-	rw_mesh.size = Vector3(1.0, 0.4, 0.15)
-	rear_wing.mesh = rw_mesh
-	rear_wing.position = Vector3(0, 0.6, -1.8)
-	rear_wing.material_override = chassis_material
-	container.add_child(rear_wing)
-
-	# Halo
-	var halo := MeshInstance3D.new()
-	var halo_mesh := TorusMesh.new()
-	halo_mesh.inner_radius = 0.25
-	halo_mesh.outer_radius = 0.03
-	halo_mesh.ring_segments = 12
-	halo_mesh.tube_segments = 6
-	halo.mesh = halo_mesh
-	halo.position = Vector3(0, 0.55, -0.3)
-
-	var halo_material := StandardMaterial3D.new()
-	halo_material.albedo_color = Color(0.3, 0.3, 0.3)
-	halo_material.metallic = 0.8
-	halo.material_override = halo_material
-	container.add_child(halo)
-
-	# Wheels
 	_create_wheels(container)
-
-	# Position the car
-	var angle: float = car_data.angle
-	var radius: float = car_data.radius
-	container.position = Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-	container.rotation.y = angle + PI / 2.0
-
 	return container
+
+func _apply_team_color(node: Node, color: Color) -> void:
+	"""Apply team color to body paint materials."""
+	if node is MeshInstance3D:
+		for i in range(node.get_surface_override_material_count()):
+			var mat = node.get_surface_override_material(i)
+			if mat and mat.name.contains("BodyPaint"):
+				mat.albedo_color = color
+	
+	for child in node.get_children():
+		_apply_team_color(child, color)
+
+func _apply_era_modifications(node: Node, era: String) -> void:
+	"""Apply era-specific visual modifications."""
+	# Remove halo for pre-2018 eras
+	if era in ["1980", "early1990", "late1990", "2000", "2009"]:
+		_remove_node_by_name(node, "Halo")
+	
+	# Scale wings based on era
+	var front_wing = node.get_node_or_null("FrontWing")
+	var rear_wing = node.get_node_or_null("RearWing")
+	
+	if era == "1980":
+		if front_wing: front_wing.scale *= 0.7
+		if rear_wing: rear_wing.scale *= 0.6
+	elif era in ["early1990", "late1990"]:
+		if front_wing: front_wing.scale *= 0.8
+		if rear_wing: rear_wing.scale *= 0.75
+
+func _remove_node_by_name(node: Node, name: String) -> void:
+	if node.name == name:
+		node.queue_free()
+		return
+	for child in node.get_children():
+		_remove_node_by_name(child, name)
 
 func _create_wheels(parent: Node3D) -> void:
 	var wheel_positions := [
