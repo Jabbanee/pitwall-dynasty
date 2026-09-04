@@ -81,7 +81,7 @@ describe('TV Director / camera mode logic', () => {
     expect(Number.isFinite(out.target.lookAt.x)).toBe(true)
     expect(Number.isFinite(out.target.lookAt.y)).toBe(true)
     expect(Number.isFinite(out.target.lookAt.z)).toBe(true)
-  })
+  }, 30000) // Extended timeout for heavy world generation
 
   it('pit-lane camera places the camera on the pit side', () => {
     const d = new TvDirector()

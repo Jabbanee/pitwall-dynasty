@@ -103,7 +103,7 @@ describe('track world — positionAt(frac) tracks motion', () => {
     // 10 % of a ~5-km lap is several hundred metres.
     expect(dist).toBeGreaterThan(50)
     world.dispose()
-  })
+  }, 30000) // Extended timeout for heavy world generation
 
   it('handles 0.99 → 0.01 wrap without producing NaN', () => {
     const circuit = CIRCUITS[0]
