@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/menu/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/ui/theme_helper.gd" id="2_theme"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 1
@@ -21,10 +22,10 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -400.0
-offset_top = 120.0
-offset_right = 400.0
-offset_bottom = 220.0
+offset_left = -450.0
+offset_top = 100.0
+offset_right = 450.0
+offset_bottom = 200.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 72
 text = "PITWALL DYNASTY"
@@ -36,10 +37,10 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -300.0
-offset_top = 230.0
-offset_right = 300.0
-offset_bottom = 280.0
+offset_left = -350.0
+offset_top = 210.0
+offset_right = 350.0
+offset_bottom = 260.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 24
 text = "Motorsport Team Management"
@@ -52,12 +53,12 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -200.0
-offset_top = 350.0
-offset_right = 200.0
-offset_bottom = 750.0
+offset_left = -220.0
+offset_top = 320.0
+offset_right = 220.0
+offset_bottom = 780.0
 grow_horizontal = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 14
 
 [node name="QuickStart" type="Button" parent="Buttons"]
 layout_mode = 2
@@ -108,3 +109,5 @@ grow_vertical = 2
 theme_override_font_sizes/font_size = 14
 text = "v0.1.0"
 theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
