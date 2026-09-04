@@ -3,10 +3,11 @@
     "godot": {
       "transport": "stdio",
       "enabled": true,
-      "command": "node",
-      "args": ["C:\\Users\\Janne\\AppData\\Roaming\\npm\\node_modules\\godot-mcp\\build\\index.js"],
+      "command": "godot-mcp",
+      "args": [],
       "env": {
-        "GODOT_PATH": "D:\\BaneWorks\\Tools\\Godot43\\Godot_v4.3-stable_win64.exe"
+        "GODOT_PATH": "D:\\BaneWorks\\Tools\\Godot47\\Godot_v4.7.2-stable_win64.exe",
+        "GODOT_PROJECT": "D:\\BaneWorks\\Pelit\\PC\\Pitwall Dynasty\\godot"
       }
     }
   }

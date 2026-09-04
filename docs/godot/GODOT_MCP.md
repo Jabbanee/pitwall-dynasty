@@ -2,9 +2,9 @@
 
 ## Package Information
 
-- **Package**: godot-mcp
-- **Version**: 0.1.0
-- **Source**: https://github.com/Coding-Solo/godot-mcp
+- **Package**: @yanhuifair/godot-mcp
+- **Version**: 1.11.2
+- **Source**: https://github.com/yanhuifair/godot-mcp
 - **License**: MIT
 
 ## Installation
@@ -20,8 +20,8 @@ The MCP server uses a bundled GDScript (`godot_operations.gd`) for complex opera
 ## Project Configuration
 
 - **Project Path**: `D:\BaneWorks\Pelit\PC\Pitwall Dynasty\godot`
-- **Godot Executable**: `D:\BaneWorks\Tools\Godot43\Godot_v4.3-stable_win64.exe`
-- **Godot Version**: 4.3.stable.official.77dcf97d8
+- **Godot Executable**: `D:\BaneWorks\Tools\Godot47\Godot_v4.7.2-stable_win64.exe`
+- **Godot Version**: 4.7.2.stable.official.ed1daf0bf
 
 ## MCP Configuration
 
