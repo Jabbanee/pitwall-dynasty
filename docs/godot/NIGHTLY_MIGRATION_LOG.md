@@ -1,6 +1,41 @@
 # Godot Migration Log
 
-## 2026-09-03 - Night Migration Run
+## 2026-09-04 - Night 2 Migration Run
+
+### Starting State
+- Branch: migration/godot-client
+- HEAD: 8685d78
+- Upstream: origin/migration/godot-client (0/0 ahead/behind)
+- Baseline tests: TSC PASS, Vitest 209/210 (1 pre-existing P5 failure), Build PASS
+
+### Night 2 Milestones Completed
+
+#### G0.5 Modern Foundation (COMPLETED)
+- Upgraded from Godot 4.3 to 4.7.2 stable
+- Switched renderer from GL Compatibility to Forward+
+- Installed matching export templates (4.7.2)
+- Upgraded MCP from godot-mcp v0.1.0 to @yanhuifair/godot-mcp v1.11.2
+- Updated .mcp.json configuration
+- Commit: 2563158, 442d662
+
+#### G1 Native UI (IMPROVED)
+- Created ThemeHelper with reusable UI styles
+- Added button, panel, and label theme functions
+- Improved main menu layout and styling
+- Added AnimationPlayer for transitions
+- Commit: 5770e64
+
+#### Windows Export (COMPLETED)
+- Created export_presets.cfg for Windows Desktop
+- Successfully exported Pitwall Dynasty.exe (109MB)
+- Output to dist-godot/ directory
+- Commit: 7756654
+
+### Blockers Resolved
+- Export templates installation: Resolved by using Python zip extraction
+- ThemeHelper class registration: Resolved by using preload instead of autoload
+
+## 2026-09-03 - Night 1 Migration Run
 
 ### Starting State
 - Branch: master
